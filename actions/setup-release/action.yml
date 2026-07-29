@@ -18,7 +18,7 @@ runs:
   using: composite
   steps:
     - name: Setup Nix and Go caching
-      uses: ./actions/setup-nix
+      uses: formancehq/ci/actions/setup-nix@main
       with:
         nscloud-cache: ${{ inputs.nscloud-cache }}
         cache-golangci-lint: ${{ inputs.cache-golangci-lint }}
@@ -34,4 +34,4 @@ runs:
       uses: docker/setup-qemu-action@v4
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v4
+      uses: namespacelabs/nscloud-setup-buildx-action@v0

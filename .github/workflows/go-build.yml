@@ -16,9 +16,9 @@ on:
         type: number
         default: 0
       build-condition:
-        description: "When to run: always, main-only, or label-only"
+        description: "When to run: always, main-only, label-only, or main-and-label"
         type: string
-        default: main-only
+        default: main-and-label
       build-label:
         description: PR label that triggers the build
         type: string
@@ -43,7 +43,7 @@ jobs:
       inputs.build-condition == 'always'
       || (inputs.build-condition == 'main-only' && (github.ref == 'refs/heads/main' || github.event_name == 'merge_group'))
       || (inputs.build-condition == 'label-only' && contains(github.event.pull_request.labels.*.name, inputs.build-label))
-      || (github.ref == 'refs/heads/main' || github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, inputs.build-label))
+      || (inputs.build-condition == 'main-and-label' && (github.ref == 'refs/heads/main' || github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, inputs.build-label)))
     steps:
       - uses: namespacelabs/nscloud-checkout-action@v9
         with:
