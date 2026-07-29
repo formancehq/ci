@@ -1,0 +1,84 @@
+name: Go Release
+
+on:
+  workflow_call:
+    secrets:
+      NUMARY_GITHUB_TOKEN:
+        required: true
+      SPEAKEASY_API_KEY:
+        required: false
+      FURY_TOKEN:
+        required: false
+      GORELEASER_KEY:
+        required: false
+    inputs:
+      runner-profile:
+        description: Namespace runner profile for the release build
+        type: string
+        default: namespace-profile-linux-amd64-4vcpu
+      goreleaser-parallelism:
+        description: GoReleaser build parallelism
+        type: number
+        default: 0
+      enable-docker:
+        description: Setup GHCR login, QEMU, and Buildx for container builds
+        type: boolean
+        default: true
+      enable-attestations:
+        description: Generate SLSA build provenance attestations
+        type: boolean
+        default: false
+      nix-extra-flags:
+        description: Extra flags for nix develop
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  GoReleaser:
+    name: GoReleaser
+    runs-on: ${{ inputs.runner-profile }}
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: namespacelabs/nscloud-checkout-action@v9
+        with:
+          fetch-depth: 0
+          dissociate: true
+
+      - name: Setup Nix and caching
+        if: ${{ !inputs.enable-docker }}
+        uses: formancehq/ci/actions/setup-nix@main
+        with:
+          nscloud-cache: 'true'
+          nix-extra-flags: ${{ inputs.nix-extra-flags }}
+
+      - name: Setup Nix, caching, and container tooling
+        if: ${{ inputs.enable-docker }}
+        uses: formancehq/ci/actions/setup-release@main
+        with:
+          token: ${{ secrets.NUMARY_GITHUB_TOKEN }}
+          nscloud-cache: 'true'
+          nix-extra-flags: ${{ inputs.nix-extra-flags }}
+
+      - name: Run release
+        run: >
+          nix develop --impure ${{ inputs.nix-extra-flags }}
+          --command just release
+          ${{ inputs.goreleaser-parallelism > 0 && format('--parallelism={0}', inputs.goreleaser-parallelism) || '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.NUMARY_GITHUB_TOKEN }}
+          SPEAKEASY_API_KEY: ${{ secrets.SPEAKEASY_API_KEY }}
+          FURY_TOKEN: ${{ secrets.FURY_TOKEN }}
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+
+      - name: Generate attestations
+        if: inputs.enable-attestations
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/checksums.txt
