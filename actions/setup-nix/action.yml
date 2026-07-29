@@ -25,7 +25,7 @@ runs:
       id: go-env
       shell: bash
       run: |
-        nix develop --impure ${{ inputs.nix-extra-flags }} --command bash -c "go env | sed -E \"s/^([^=]+)='(.*)'\$/\1=\2/\"" > /tmp/goenv.txt
+        nix develop --impure ${{ inputs.nix-extra-flags }} --command sh -c 'go env | sed -E "s/^([^=]+)='"'"'(.*)'"'"'$/\1=\2/" > /tmp/goenv.txt'
         cat /tmp/goenv.txt >> "$GITHUB_OUTPUT"
 
     - name: Cache Go modules and build artifacts
