@@ -10,6 +10,10 @@ inputs:
     description: Include ~/.cache/golangci-lint in the Namespace cache
     required: false
     default: 'true'
+  nix-extra-flags:
+    description: Extra flags for nix develop (e.g. --accept-flake-config)
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -21,7 +25,8 @@ runs:
       id: go-env
       shell: bash
       run: |
-        nix develop --impure --command bash -c "go env | sed -E \"s/^([^=]+)='(.*)'\$/\1=\2/\"" >> "$GITHUB_OUTPUT"
+        nix develop --impure ${{ inputs.nix-extra-flags }} --command bash -c "go env | sed -E \"s/^([^=]+)='(.*)'\$/\1=\2/\"" > /tmp/goenv.txt
+        cat /tmp/goenv.txt >> "$GITHUB_OUTPUT"
 
     - name: Cache Go modules and build artifacts
       if: inputs.nscloud-cache != 'false'

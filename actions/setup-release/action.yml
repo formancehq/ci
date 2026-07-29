@@ -13,6 +13,10 @@ inputs:
     description: Include ~/.cache/golangci-lint in the Namespace cache
     required: false
     default: 'true'
+  nix-extra-flags:
+    description: Extra flags for nix develop
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -22,6 +26,7 @@ runs:
       with:
         nscloud-cache: ${{ inputs.nscloud-cache }}
         cache-golangci-lint: ${{ inputs.cache-golangci-lint }}
+        nix-extra-flags: ${{ inputs.nix-extra-flags }}
 
     - name: Login to GitHub Container Registry
       uses: docker/login-action@v4

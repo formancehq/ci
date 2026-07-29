@@ -65,6 +65,7 @@ jobs:
         uses: formancehq/ci/actions/setup-nix@main
         with:
           nscloud-cache: 'true'
+          nix-extra-flags: ${{ inputs.nix-extra-flags }}
 
       - name: Run pre-commit
         run: >
