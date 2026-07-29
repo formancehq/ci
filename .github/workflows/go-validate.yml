@@ -1,0 +1,124 @@
+name: Go Validate
+
+on:
+  workflow_call:
+    inputs:
+      runner-profile-dirty:
+        description: Namespace runner profile for the Dirty job
+        type: string
+        default: namespace-profile-linux-amd64-4vcpu
+      runner-profile-tests:
+        description: Namespace runner profile for the Tests job
+        type: string
+        default: namespace-profile-linux-amd64-8vcpu
+      pre-commit-target:
+        description: Just target for pre-commit validation
+        type: string
+        default: pre-commit
+      test-target:
+        description: Just target for running tests
+        type: string
+        default: tests
+      extra-test-targets:
+        description: Space-separated additional just targets to run after the main test target
+        type: string
+        default: ''
+      enable-codecov:
+        description: Upload test coverage to Codecov
+        type: boolean
+        default: false
+      enable-pr-check:
+        description: Run semantic PR title validation
+        type: boolean
+        default: true
+      nix-extra-flags:
+        description: Extra flags for nix develop (e.g. --extra-experimental-features)
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  PR:
+    if: inputs.enable-pr-check && github.event_name == 'pull_request'
+    name: PR
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    steps:
+      - uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+  Dirty:
+    name: Dirty
+    runs-on: ${{ inputs.runner-profile-dirty }}
+    steps:
+      - uses: namespacelabs/nscloud-checkout-action@v9
+        with:
+          fetch-depth: 0
+          dissociate: true
+
+      - name: Setup Nix and caching
+        uses: formancehq/ci/actions/setup-nix@main
+        with:
+          nscloud-cache: 'true'
+
+      - name: Run pre-commit
+        run: >
+          nix develop --impure ${{ inputs.nix-extra-flags }}
+          --command just ${{ inputs.pre-commit-target }}
+        env:
+          SPEAKEASY_API_KEY: ${{ secrets.SPEAKEASY_API_KEY }}
+
+      - name: Assert clean worktree
+        shell: bash
+        run: |
+          hasChanged=$(git status --porcelain)
+          if (( $(echo ${#hasChanged}) != 0 )); then
+            git diff
+            git status
+            echo "::error::Working tree is dirty after pre-commit. Run 'just ${{ inputs.pre-commit-target }}' locally and commit the changes."
+            exit 1
+          fi
+
+  Tests:
+    name: Tests
+    runs-on: ${{ inputs.runner-profile-tests }}
+    needs: [Dirty]
+    steps:
+      - uses: namespacelabs/nscloud-checkout-action@v9
+        with:
+          fetch-depth: 0
+          dissociate: true
+
+      - name: Setup Nix and caching
+        uses: formancehq/ci/actions/setup-nix@main
+        with:
+          nscloud-cache: 'true'
+
+      - name: Run tests
+        run: >
+          nix develop --impure ${{ inputs.nix-extra-flags }}
+          --command just ${{ inputs.test-target }}
+        env:
+          SPEAKEASY_API_KEY: ${{ secrets.SPEAKEASY_API_KEY }}
+
+      - name: Run extra test targets
+        if: inputs.extra-test-targets != ''
+        shell: bash
+        run: |
+          for target in ${{ inputs.extra-test-targets }}; do
+            echo "::group::just $target"
+            nix develop --impure ${{ inputs.nix-extra-flags }} --command just "$target"
+            echo "::endgroup::"
+          done
+        env:
+          SPEAKEASY_API_KEY: ${{ secrets.SPEAKEASY_API_KEY }}
+
+      - name: Upload coverage to Codecov
+        if: inputs.enable-codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
