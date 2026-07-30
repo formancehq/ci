@@ -1,0 +1,42 @@
+name: Setup Release
+description: Extend setup-nix with container registry login and multi-arch build support
+
+inputs:
+  token:
+    description: GitHub PAT for GHCR login
+    required: true
+  nscloud-cache:
+    description: Enable Namespace.so Go and lint caching
+    required: false
+    default: 'true'
+  cache-golangci-lint:
+    description: Include ~/.cache/golangci-lint in the Namespace cache
+    required: false
+    default: 'true'
+  nix-extra-flags:
+    description: Extra flags for nix develop
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Nix and Go caching
+      uses: formancehq/ci/actions/setup-nix@main
+      with:
+        nscloud-cache: ${{ inputs.nscloud-cache }}
+        cache-golangci-lint: ${{ inputs.cache-golangci-lint }}
+        nix-extra-flags: ${{ inputs.nix-extra-flags }}
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v4
+      with:
+        registry: ghcr.io
+        username: NumaryBot
+        password: ${{ inputs.token }}
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v4
+
+    - name: Set up Docker Buildx
+      uses: namespacelabs/nscloud-setup-buildx-action@v0

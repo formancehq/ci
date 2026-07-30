@@ -1,0 +1,87 @@
+name: Go Build
+
+on:
+  workflow_call:
+    secrets:
+      NUMARY_GITHUB_TOKEN:
+        required: true
+      SPEAKEASY_API_KEY:
+        required: false
+      FURY_TOKEN:
+        required: false
+      GORELEASER_KEY:
+        required: false
+    inputs:
+      runner-profile:
+        description: Namespace runner profile for the build
+        type: string
+        default: namespace-profile-linux-amd64-4vcpu
+      build-target:
+        description: Just target for CI release build
+        type: string
+        default: release-ci
+      goreleaser-parallelism:
+        description: GoReleaser build parallelism
+        type: number
+        default: 0
+      build-condition:
+        description: "When to run: always, main-only, label-only, or main-and-label"
+        type: string
+        default: main-and-label
+      build-label:
+        description: PR label that triggers the build
+        type: string
+        default: build-images
+      enable-docker:
+        description: Setup GHCR login, QEMU, and Buildx
+        type: boolean
+        default: true
+      nix-extra-flags:
+        description: Extra flags for nix develop
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  GoReleaser:
+    name: GoReleaser
+    runs-on: ${{ inputs.runner-profile }}
+    if: >-
+      inputs.build-condition == 'always'
+      || (inputs.build-condition == 'main-only' && (github.ref == 'refs/heads/main' || github.event_name == 'merge_group'))
+      || (inputs.build-condition == 'label-only' && contains(github.event.pull_request.labels.*.name, inputs.build-label))
+      || (inputs.build-condition == 'main-and-label' && (github.ref == 'refs/heads/main' || github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, inputs.build-label)))
+    steps:
+      - uses: namespacelabs/nscloud-checkout-action@v9
+        with:
+          fetch-depth: 0
+          dissociate: true
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+      - name: Setup Nix and caching
+        if: ${{ !inputs.enable-docker }}
+        uses: formancehq/ci/actions/setup-nix@main
+        with:
+          nscloud-cache: 'true'
+          nix-extra-flags: ${{ inputs.nix-extra-flags }}
+
+      - name: Setup Nix, caching, and container tooling
+        if: ${{ inputs.enable-docker }}
+        uses: formancehq/ci/actions/setup-release@main
+        with:
+          token: ${{ secrets.NUMARY_GITHUB_TOKEN }}
+          nscloud-cache: 'true'
+          nix-extra-flags: ${{ inputs.nix-extra-flags }}
+
+      - name: Run build
+        run: >
+          nix develop --impure ${{ inputs.nix-extra-flags }}
+          --command just ${{ inputs.build-target }}
+          ${{ inputs.goreleaser-parallelism > 0 && format('--parallelism={0}', inputs.goreleaser-parallelism) || '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.NUMARY_GITHUB_TOKEN }}
+          SPEAKEASY_API_KEY: ${{ secrets.SPEAKEASY_API_KEY }}
+          FURY_TOKEN: ${{ secrets.FURY_TOKEN }}
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
