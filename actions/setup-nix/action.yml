@@ -1,0 +1,38 @@
+name: Setup Nix
+description: Install Nix, extract Go environment, and configure Namespace runner caching
+
+inputs:
+  nscloud-cache:
+    description: Enable Namespace.so Go and lint caching
+    required: false
+    default: 'true'
+  cache-golangci-lint:
+    description: Include ~/.cache/golangci-lint in the Namespace cache
+    required: false
+    default: 'true'
+  nix-extra-flags:
+    description: Extra flags for nix develop
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Install Nix
+      uses: cachix/install-nix-action@v31
+
+    - name: Extract Go environment
+      id: go-env
+      shell: bash
+      run: |
+        nix develop --impure ${{ inputs.nix-extra-flags }} --command sh -c 'go env | sed -E "s/^([^=]+)='"'"'(.*)'"'"'$/\1=\2/" > /tmp/goenv.txt'
+        cat /tmp/goenv.txt >> "$GITHUB_OUTPUT"
+
+    - name: Cache Go modules and build artifacts
+      if: inputs.nscloud-cache != 'false'
+      uses: namespacelabs/nscloud-cache-action@v1
+      with:
+        path: |
+          ${{ steps.go-env.outputs.GOCACHE }}
+          ${{ steps.go-env.outputs.GOMODCACHE }}
+          ${{ inputs.cache-golangci-lint != 'false' && '~/.cache/golangci-lint' || '' }}
