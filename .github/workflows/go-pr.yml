@@ -3,15 +3,13 @@ name: Go PR
 on:
   workflow_call:
 
-permissions:
-  contents: read
-
 jobs:
   PR:
     if: github.event_name == 'pull_request'
     name: PR
     runs-on: ubuntu-latest
     permissions:
+      contents: none
       pull-requests: read
       statuses: write
     steps:

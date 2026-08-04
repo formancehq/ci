@@ -35,13 +35,12 @@ on:
         type: string
         default: ''
 
-permissions:
-  contents: read
-
 jobs:
   Test:
     name: Test
     runs-on: ${{ inputs.runner-profile }}
+    permissions:
+      contents: read
     steps:
       - uses: namespacelabs/nscloud-checkout-action@v9
         with:
