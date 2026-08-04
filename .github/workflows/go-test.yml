@@ -1,0 +1,82 @@
+name: Go Test
+
+on:
+  workflow_call:
+    secrets:
+      SPEAKEASY_API_KEY:
+        required: false
+      NUMARY_GITHUB_TOKEN:
+        required: false
+      CODECOV_TOKEN:
+        required: false
+    inputs:
+      runner-profile:
+        description: Namespace runner profile
+        type: string
+        default: namespace-profile-linux-amd64-8vcpu
+      test-target:
+        description: Just target for running tests
+        type: string
+        default: tests
+      extra-test-targets:
+        description: Space-separated additional just targets to run after the main test target
+        type: string
+        default: ''
+      enable-codecov:
+        description: Upload test coverage to Codecov
+        type: boolean
+        default: false
+      coverage-files:
+        description: Comma-separated coverage file paths for Codecov
+        type: string
+        default: ''
+      nix-extra-flags:
+        description: Extra flags for nix develop
+        type: string
+        default: ''
+
+jobs:
+  Test:
+    name: Test
+    runs-on: ${{ inputs.runner-profile }}
+    permissions:
+      contents: read
+    steps:
+      - uses: namespacelabs/nscloud-checkout-action@v9
+        with:
+          fetch-depth: 0
+          dissociate: true
+
+      - name: Setup Nix and caching
+        uses: formancehq/ci/actions/setup-nix@main
+        with:
+          nscloud-cache: 'true'
+          nix-extra-flags: ${{ inputs.nix-extra-flags }}
+
+      - name: Run tests
+        run: >
+          nix develop --impure ${{ inputs.nix-extra-flags }}
+          --command just ${{ inputs.test-target }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.NUMARY_GITHUB_TOKEN }}
+          SPEAKEASY_API_KEY: ${{ secrets.SPEAKEASY_API_KEY }}
+
+      - name: Run extra test targets
+        if: inputs.extra-test-targets != ''
+        shell: bash
+        run: |
+          for target in ${{ inputs.extra-test-targets }}; do
+            echo "::group::just $target"
+            nix develop --impure ${{ inputs.nix-extra-flags }} --command just "$target"
+            echo "::endgroup::"
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.NUMARY_GITHUB_TOKEN }}
+          SPEAKEASY_API_KEY: ${{ secrets.SPEAKEASY_API_KEY }}
+
+      - name: Upload coverage to Codecov
+        if: inputs.enable-codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ${{ inputs.coverage-files }}
+          token: ${{ secrets.CODECOV_TOKEN }}

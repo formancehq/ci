@@ -1,0 +1,56 @@
+name: Go Dirty
+
+on:
+  workflow_call:
+    secrets:
+      SPEAKEASY_API_KEY:
+        required: false
+    inputs:
+      runner-profile:
+        description: Namespace runner profile
+        type: string
+        default: namespace-profile-linux-amd64-4vcpu
+      pre-commit-target:
+        description: Just target for pre-commit validation
+        type: string
+        default: pre-commit
+      nix-extra-flags:
+        description: Extra flags for nix develop
+        type: string
+        default: ''
+
+jobs:
+  Dirty:
+    name: Dirty
+    runs-on: ${{ inputs.runner-profile }}
+    permissions:
+      contents: read
+    steps:
+      - uses: namespacelabs/nscloud-checkout-action@v9
+        with:
+          fetch-depth: 0
+          dissociate: true
+
+      - name: Setup Nix and caching
+        uses: formancehq/ci/actions/setup-nix@main
+        with:
+          nscloud-cache: 'true'
+          nix-extra-flags: ${{ inputs.nix-extra-flags }}
+
+      - name: Run pre-commit
+        run: >
+          nix develop --impure ${{ inputs.nix-extra-flags }}
+          --command just ${{ inputs.pre-commit-target }}
+        env:
+          SPEAKEASY_API_KEY: ${{ secrets.SPEAKEASY_API_KEY }}
+
+      - name: Assert clean worktree
+        shell: bash
+        run: |
+          hasChanged=$(git status --porcelain)
+          if (( $(echo ${#hasChanged}) != 0 )); then
+            git diff
+            git status
+            echo "::error::Working tree is dirty after pre-commit. Run 'just ${{ inputs.pre-commit-target }}' locally and commit the changes."
+            exit 1
+          fi
