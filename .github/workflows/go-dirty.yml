@@ -19,13 +19,12 @@ on:
         type: string
         default: ''
 
-permissions:
-  contents: read
-
 jobs:
   Dirty:
     name: Dirty
     runs-on: ${{ inputs.runner-profile }}
+    permissions:
+      contents: read
     steps:
       - uses: namespacelabs/nscloud-checkout-action@v9
         with:
