@@ -1,0 +1,77 @@
+name: Deploy to Staging
+description: Connect to Tailscale (OIDC) and deploy a component to staging via ArgoCD
+
+inputs:
+  component:
+    description: Component name (sets versions.files.default.<component>=<tag>)
+    required: true
+  tag:
+    description: Image tag to deploy (typically github.sha)
+    required: true
+  auth-token:
+    description: ArgoCD auth token
+    required: true
+  ts-oauth-client-id:
+    description: Tailscale OIDC OAuth client ID
+    required: true
+  ts-audience:
+    description: Tailscale OIDC audience
+    required: true
+  ts-tags:
+    description: Tailscale tags
+    required: false
+    default: ''
+  ts-version:
+    description: Tailscale version
+    required: false
+    default: ''
+  ts-args:
+    description: Tailscale extra args
+    required: false
+    default: ''
+  ts-retry:
+    description: Tailscale retry count
+    required: false
+    default: ''
+  ts-timeout:
+    description: Tailscale timeout
+    required: false
+    default: ''
+  ts-ping:
+    description: Tailscale ping target
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Tailscale
+      uses: tailscale/github-action@v4
+      with:
+        oauth-client-id: ${{ inputs.ts-oauth-client-id }}
+        audience: ${{ inputs.ts-audience }}
+        tags: ${{ inputs.ts-tags }}
+        version: ${{ inputs.ts-version }}
+        args: ${{ inputs.ts-args }}
+        retry: ${{ inputs.ts-retry }}
+        timeout: ${{ inputs.ts-timeout }}
+        ping: ${{ inputs.ts-ping }}
+
+    - name: Install ArgoCD CLI
+      shell: bash
+      run: |
+        curl -sSL -o "$RUNNER_TEMP/argocd" https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+        chmod +x "$RUNNER_TEMP/argocd"
+        echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+    - name: Deploy to staging
+      shell: bash
+      run: |
+        SERVER=argocd.internal.formance.cloud
+        APP=staging-eu-west-1-hosting-regions
+        argocd --auth-token="$AUTH_TOKEN" --server="$SERVER" --grpc-web app set "$APP" --parameter "versions.files.default.$COMPONENT=$TAG"
+        argocd --auth-token="$AUTH_TOKEN" --server="$SERVER" --grpc-web app sync "$APP"
+      env:
+        AUTH_TOKEN: ${{ inputs.auth-token }}
+        COMPONENT: ${{ inputs.component }}
+        TAG: ${{ inputs.tag }}
