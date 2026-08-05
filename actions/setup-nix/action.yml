@@ -14,12 +14,21 @@ inputs:
     description: Extra flags for nix develop
     required: false
     default: ''
+  git-private-token:
+    description: GitHub PAT for private formancehq repo access
+    required: false
+    default: ''
 
 runs:
   using: composite
   steps:
     - name: Install Nix
       uses: cachix/install-nix-action@v31
+
+    - name: Configure Git for private repos
+      if: inputs.git-private-token != ''
+      shell: bash
+      run: git config --global url."https://${{ inputs.git-private-token }}@github.com/formancehq/".insteadOf "https://github.com/formancehq/"
 
     - name: Extract Go environment
       id: go-env
