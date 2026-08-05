@@ -17,6 +17,10 @@ inputs:
     description: Extra flags for nix develop
     required: false
     default: ''
+  git-private-token:
+    description: GitHub PAT for private formancehq repo access
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -27,6 +31,7 @@ runs:
         nscloud-cache: ${{ inputs.nscloud-cache }}
         cache-golangci-lint: ${{ inputs.cache-golangci-lint }}
         nix-extra-flags: ${{ inputs.nix-extra-flags }}
+        git-private-token: ${{ inputs.git-private-token }}
 
     - name: Login to GitHub Container Registry
       uses: docker/login-action@v4
