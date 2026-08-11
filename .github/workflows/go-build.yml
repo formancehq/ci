@@ -32,6 +32,10 @@ on:
         description: PR label that triggers the build
         type: string
         default: build-images
+      build-extra-label:
+        description: One additional PR label that triggers the build
+        type: string
+        default: ''
       enable-docker:
         description: Setup GHCR login, QEMU, and Buildx
         type: boolean
@@ -51,8 +55,8 @@ jobs:
     if: >-
       inputs.build-condition == 'always'
       || (inputs.build-condition == 'main-only' && (github.ref == 'refs/heads/main' || github.event_name == 'merge_group'))
-      || (inputs.build-condition == 'label-only' && contains(github.event.pull_request.labels.*.name, inputs.build-label))
-      || (inputs.build-condition == 'main-and-label' && (github.ref == 'refs/heads/main' || github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, inputs.build-label)))
+      || (inputs.build-condition == 'label-only' && (contains(github.event.pull_request.labels.*.name, inputs.build-label) || (inputs.build-extra-label != '' && contains(github.event.pull_request.labels.*.name, inputs.build-extra-label))))
+      || (inputs.build-condition == 'main-and-label' && (github.ref == 'refs/heads/main' || github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, inputs.build-label) || (inputs.build-extra-label != '' && contains(github.event.pull_request.labels.*.name, inputs.build-extra-label))))
     steps:
       - uses: namespacelabs/nscloud-checkout-action@v9
         with:
