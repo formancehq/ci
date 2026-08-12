@@ -58,8 +58,12 @@ runs:
 
     - name: Install ArgoCD CLI
       shell: bash
+      env:
+        ARGOCD_VERSION: v3.1.8
+        ARGOCD_CHECKSUM: bfc45149df6dc8408cee3c1c66e865adde1439d8f419657513b56704d73f1e4d
       run: |
-        curl -sSL -o "$RUNNER_TEMP/argocd" https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+        curl -sSL -o "$RUNNER_TEMP/argocd" "https://github.com/argoproj/argo-cd/releases/download/${ARGOCD_VERSION}/argocd-linux-amd64"
+        echo "${ARGOCD_CHECKSUM}  $RUNNER_TEMP/argocd" | sha256sum -c -
         chmod +x "$RUNNER_TEMP/argocd"
         echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
