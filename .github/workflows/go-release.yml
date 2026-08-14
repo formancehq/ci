@@ -32,10 +32,6 @@ on:
         description: Extra flags for nix develop
         type: string
         default: ''
-      git-private-token:
-        description: GitHub PAT for private formancehq repo access (go mod download)
-        type: string
-        default: ''
 
 permissions:
   contents: write
@@ -61,7 +57,6 @@ jobs:
         with:
           nscloud-cache: 'true'
           nix-extra-flags: ${{ inputs.nix-extra-flags }}
-          git-private-token: ${{ inputs.git-private-token }}
 
       - name: Setup Nix, caching, and container tooling
         if: ${{ inputs.enable-docker }}
@@ -70,7 +65,6 @@ jobs:
           token: ${{ secrets.NUMARY_GITHUB_TOKEN }}
           nscloud-cache: 'true'
           nix-extra-flags: ${{ inputs.nix-extra-flags }}
-          git-private-token: ${{ inputs.git-private-token }}
 
       - name: Run release
         run: >
