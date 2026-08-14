@@ -3,14 +3,27 @@ description: Connect to Tailscale (OIDC) and deploy a component to staging via A
 
 inputs:
   component:
-    description: Component name (sets versions.files.default.<component>=<tag>)
-    required: true
+    description: Component name (used in default parameter as versions.files.default.<component>=<tag>)
+    required: false
+    default: ''
   tag:
     description: Image tag to deploy (typically github.sha)
     required: true
   auth-token:
     description: ArgoCD auth token
     required: true
+  application:
+    description: ArgoCD application name
+    required: false
+    default: staging-eu-west-1-hosting-regions
+  parameter:
+    description: Full ArgoCD parameter string (overrides default versions.files.default.<component>=<tag>)
+    required: false
+    default: ''
+  source-position:
+    description: ArgoCD --source-position value (omitted if empty)
+    required: false
+    default: ''
   ts-oauth-client-id:
     description: Tailscale OIDC OAuth client ID
     required: true
@@ -70,11 +83,19 @@ runs:
     - name: Deploy to staging
       shell: bash
       run: |
+        if [ -z "$COMPONENT" ] && [ -z "$PARAMETER" ]; then
+          echo "::error::Either 'component' or 'parameter' input is required"
+          exit 1
+        fi
         SERVER=argocd.internal.formance.cloud
-        APP=staging-eu-west-1-hosting-regions
-        argocd --auth-token="$AUTH_TOKEN" --server="$SERVER" --grpc-web app set "$APP" --parameter "versions.files.default.$COMPONENT=$TAG"
+        PARAM="${PARAMETER:-versions.files.default.$COMPONENT=$TAG}"
+        SOURCE_POS="${SOURCE_POSITION:+--source-position $SOURCE_POSITION}"
+        argocd --auth-token="$AUTH_TOKEN" --server="$SERVER" --grpc-web app set "$APP" -p "$PARAM" $SOURCE_POS
         argocd --auth-token="$AUTH_TOKEN" --server="$SERVER" --grpc-web app sync "$APP"
       env:
         AUTH_TOKEN: ${{ inputs.auth-token }}
+        APP: ${{ inputs.application }}
         COMPONENT: ${{ inputs.component }}
         TAG: ${{ inputs.tag }}
+        PARAMETER: ${{ inputs.parameter }}
+        SOURCE_POSITION: ${{ inputs.source-position }}
