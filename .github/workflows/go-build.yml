@@ -11,6 +11,8 @@ on:
         required: false
       GORELEASER_KEY:
         required: false
+      GIT_PRIVATE_TOKEN:
+        required: false
     inputs:
       runner-profile:
         description: Namespace runner profile for the build
@@ -70,6 +72,7 @@ jobs:
         with:
           nscloud-cache: 'true'
           nix-extra-flags: ${{ inputs.nix-extra-flags }}
+          git-private-token: ${{ secrets.GIT_PRIVATE_TOKEN }}
 
       - name: Setup Nix, caching, and container tooling
         if: ${{ inputs.enable-docker }}
@@ -78,6 +81,7 @@ jobs:
           token: ${{ secrets.NUMARY_GITHUB_TOKEN }}
           nscloud-cache: 'true'
           nix-extra-flags: ${{ inputs.nix-extra-flags }}
+          git-private-token: ${{ secrets.GIT_PRIVATE_TOKEN }}
 
       - name: Run build
         run: >
