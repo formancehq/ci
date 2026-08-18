@@ -64,7 +64,7 @@ jobs:
         with:
           fetch-depth: 0
           dissociate: true
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
 
       - name: Setup Nix and caching
         if: ${{ !inputs.enable-docker }}
