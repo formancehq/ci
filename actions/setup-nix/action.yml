@@ -22,6 +22,12 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Cache Nix store
+      if: inputs.nscloud-cache != 'false'
+      uses: namespacelabs/nscloud-cache-action@v1
+      with:
+        path: /nix
+
     - name: Install Nix
       uses: cachix/install-nix-action@v31
 
