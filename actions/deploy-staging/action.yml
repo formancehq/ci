@@ -17,7 +17,7 @@ inputs:
     required: false
     default: staging-eu-west-1-hosting-regions
   parameter:
-    description: Full ArgoCD parameter string (overrides default versions.files.default.<component>=<tag>)
+    description: "ArgoCD parameter(s): one per line or single value (overrides default versions.files.default.<component>=<tag>)"
     required: false
     default: ''
   source-position:
@@ -53,6 +53,10 @@ inputs:
     description: Tailscale ping target
     required: false
     default: ''
+  skip-sync:
+    description: Skip app sync (set to true when chaining multiple app set calls)
+    required: false
+    default: 'false'
 
 runs:
   using: composite
@@ -88,10 +92,19 @@ runs:
           exit 1
         fi
         SERVER=argocd.internal.formance.cloud
-        PARAM="${PARAMETER:-versions.files.default.$COMPONENT=$TAG}"
         SOURCE_POS="${SOURCE_POSITION:+--source-position $SOURCE_POSITION}"
-        argocd --auth-token="$AUTH_TOKEN" --server="$SERVER" --grpc-web app set "$APP" -p "$PARAM" $SOURCE_POS
-        argocd --auth-token="$AUTH_TOKEN" --server="$SERVER" --grpc-web app sync "$APP"
+        PARAMS=()
+        if [ -n "$PARAMETER" ]; then
+          while IFS= read -r line; do
+            [ -n "$line" ] && PARAMS+=(-p "$line")
+          done <<< "$PARAMETER"
+        else
+          PARAMS=(-p "versions.files.default.$COMPONENT=$TAG")
+        fi
+        argocd --auth-token="$AUTH_TOKEN" --server="$SERVER" --grpc-web app set "$APP" "${PARAMS[@]}" $SOURCE_POS
+        if [ "$SKIP_SYNC" != "true" ]; then
+          argocd --auth-token="$AUTH_TOKEN" --server="$SERVER" --grpc-web app sync "$APP"
+        fi
       env:
         AUTH_TOKEN: ${{ inputs.auth-token }}
         APP: ${{ inputs.application }}
@@ -99,3 +112,4 @@ runs:
         TAG: ${{ inputs.tag }}
         PARAMETER: ${{ inputs.parameter }}
         SOURCE_POSITION: ${{ inputs.source-position }}
+        SKIP_SYNC: ${{ inputs.skip-sync }}
