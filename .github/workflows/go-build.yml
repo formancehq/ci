@@ -64,7 +64,6 @@ jobs:
         with:
           fetch-depth: 0
           dissociate: true
-          ref: ${{ github.sha }}
 
       - name: Setup Nix and caching
         if: ${{ !inputs.enable-docker }}
