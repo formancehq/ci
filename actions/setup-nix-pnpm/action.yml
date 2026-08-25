@@ -2,10 +2,6 @@ name: Setup Nix (pnpm)
 description: Install Nix with flake caching and pnpm store cache for JS/TS repos
 
 inputs:
-  nscloud-cache:
-    description: Enable Namespace.so Nix store caching
-    required: false
-    default: 'true'
   nix-extra-flags:
     description: Extra flags for nix develop
     required: false
@@ -14,14 +10,17 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Cache Nix store
-      if: inputs.nscloud-cache != 'false'
-      uses: namespacelabs/nscloud-cache-action@v1
-      with:
-        path: /nix
-
     - name: Install Nix
       uses: cachix/install-nix-action@v31
+      with:
+        nix_path: nixpkgs=channel:nixos-unstable
+
+    - name: Cache Nix store
+      uses: nix-community/cache-nix-action@v7
+      with:
+        primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.nix', 'flake.lock') }}
+        restore-prefixes-first-match: |
+          nix-${{ runner.os }}-${{ runner.arch }}-
 
     - name: Warm devshell
       shell: bash
@@ -37,7 +36,9 @@ runs:
       run: echo "path=$(nix develop --impure $NIX_EXTRA_FLAGS --command pnpm store path)" >> "$GITHUB_OUTPUT"
 
     - name: Cache pnpm store
-      if: inputs.nscloud-cache != 'false'
-      uses: namespacelabs/nscloud-cache-action@v1
+      uses: actions/cache@v6
       with:
         path: ${{ steps.pnpm-store.outputs.path }}
+        key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+        restore-keys: |
+          pnpm-${{ runner.os }}-
