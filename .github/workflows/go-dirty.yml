@@ -18,6 +18,10 @@ on:
         description: Extra flags for nix develop
         type: string
         default: ''
+      cache-nix-store:
+        description: Cache /nix store via Namespace (disable for repos with their own nix caching)
+        type: string
+        default: 'true'
 
 jobs:
   Dirty:
@@ -34,7 +38,7 @@ jobs:
       - name: Setup Nix and caching
         uses: formancehq/ci/actions/setup-nix@main
         with:
-          nscloud-cache: 'true'
+          cache-nix-store: ${{ inputs.cache-nix-store }}
           nix-extra-flags: ${{ inputs.nix-extra-flags }}
 
       - name: Run pre-commit

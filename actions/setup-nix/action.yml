@@ -6,6 +6,10 @@ inputs:
     description: Enable Namespace.so Go and lint caching
     required: false
     default: 'true'
+  cache-nix-store:
+    description: Cache /nix store via Namespace (defaults to nscloud-cache value)
+    required: false
+    default: ''
   cache-golangci-lint:
     description: Include ~/.cache/golangci-lint in the Namespace cache
     required: false
@@ -23,7 +27,7 @@ runs:
   using: composite
   steps:
     - name: Cache Nix store
-      if: inputs.nscloud-cache != 'false'
+      if: (inputs.cache-nix-store != '' && inputs.cache-nix-store != 'false') || (inputs.cache-nix-store == '' && inputs.nscloud-cache != 'false')
       uses: namespacelabs/nscloud-cache-action@v1
       with:
         path: /nix
