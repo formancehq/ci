@@ -1,0 +1,43 @@
+name: Setup Nix (pnpm)
+description: Install Nix with flake caching and pnpm store cache for JS/TS repos
+
+inputs:
+  nscloud-cache:
+    description: Enable Namespace.so Nix store caching
+    required: false
+    default: 'true'
+  nix-extra-flags:
+    description: Extra flags for nix develop
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Cache Nix store
+      if: inputs.nscloud-cache != 'false'
+      uses: namespacelabs/nscloud-cache-action@v1
+      with:
+        path: /nix
+
+    - name: Install Nix
+      uses: cachix/install-nix-action@v31
+
+    - name: Warm devshell
+      shell: bash
+      env:
+        NIX_EXTRA_FLAGS: ${{ inputs.nix-extra-flags }}
+      run: nix develop --impure $NIX_EXTRA_FLAGS --command echo "devshell ready"
+
+    - name: Get pnpm store path
+      id: pnpm-store
+      shell: bash
+      env:
+        NIX_EXTRA_FLAGS: ${{ inputs.nix-extra-flags }}
+      run: echo "path=$(nix develop --impure $NIX_EXTRA_FLAGS --command pnpm store path)" >> "$GITHUB_OUTPUT"
+
+    - name: Cache pnpm store
+      if: inputs.nscloud-cache != 'false'
+      uses: namespacelabs/nscloud-cache-action@v1
+      with:
+        path: ${{ steps.pnpm-store.outputs.path }}
