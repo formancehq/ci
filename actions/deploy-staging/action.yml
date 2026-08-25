@@ -57,11 +57,16 @@ inputs:
     description: Skip app sync (set to true when chaining multiple app set calls)
     required: false
     default: 'false'
+  skip-tailscale:
+    description: Skip Tailscale setup (set to true when chaining multiple deploy-staging calls on the same runner)
+    required: false
+    default: 'false'
 
 runs:
   using: composite
   steps:
     - name: Tailscale
+      if: inputs.skip-tailscale != 'true'
       uses: tailscale/github-action@v4
       with:
         oauth-client-id: ${{ inputs.ts-oauth-client-id }}
