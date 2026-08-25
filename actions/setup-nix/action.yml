@@ -34,13 +34,17 @@ runs:
     - name: Configure Git for private repos
       if: inputs.git-private-token != ''
       shell: bash
-      run: git config --global url."https://${{ inputs.git-private-token }}@github.com/formancehq/".insteadOf "https://github.com/formancehq/"
+      env:
+        GIT_PRIVATE_TOKEN: ${{ inputs.git-private-token }}
+      run: git config --global url."https://${GIT_PRIVATE_TOKEN}@github.com/formancehq/".insteadOf "https://github.com/formancehq/"
 
     - name: Extract Go environment
       id: go-env
       shell: bash
+      env:
+        NIX_EXTRA_FLAGS: ${{ inputs.nix-extra-flags }}
       run: |
-        nix develop --impure ${{ inputs.nix-extra-flags }} --command sh -c 'go env | sed -E "s/^([^=]+)='"'"'(.*)'"'"'$/\1=\2/" > /tmp/goenv.txt'
+        nix develop --impure $NIX_EXTRA_FLAGS --command sh -c 'go env | sed -E "s/^([^=]+)='"'"'(.*)'"'"'$/\1=\2/" > /tmp/goenv.txt'
         cat /tmp/goenv.txt >> "$GITHUB_OUTPUT"
 
     - name: Cache Go modules and build artifacts

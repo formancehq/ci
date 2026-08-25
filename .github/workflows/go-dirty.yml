@@ -39,18 +39,22 @@ jobs:
 
       - name: Run pre-commit
         run: >
-          nix develop --impure ${{ inputs.nix-extra-flags }}
-          --command just ${{ inputs.pre-commit-target }}
+          nix develop --impure $NIX_EXTRA_FLAGS
+          --command just $PRE_COMMIT_TARGET
         env:
           SPEAKEASY_API_KEY: ${{ secrets.SPEAKEASY_API_KEY }}
+          NIX_EXTRA_FLAGS: ${{ inputs.nix-extra-flags }}
+          PRE_COMMIT_TARGET: ${{ inputs.pre-commit-target }}
 
       - name: Assert clean worktree
         shell: bash
+        env:
+          PRE_COMMIT_TARGET: ${{ inputs.pre-commit-target }}
         run: |
           hasChanged=$(git status --porcelain)
           if (( $(echo ${#hasChanged}) != 0 )); then
             git diff
             git status
-            echo "::error::Working tree is dirty after pre-commit. Run 'just ${{ inputs.pre-commit-target }}' locally and commit the changes."
+            echo "::error::Working tree is dirty after pre-commit. Run 'just $PRE_COMMIT_TARGET' locally and commit the changes."
             exit 1
           fi
