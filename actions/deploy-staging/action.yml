@@ -108,6 +108,10 @@ runs:
         fi
         argocd --auth-token="$AUTH_TOKEN" --server="$SERVER" --grpc-web app set "$APP" "${PARAMS[@]}" $SOURCE_POS
         if [ "$SKIP_SYNC" != "true" ]; then
+          if ! argocd --auth-token="$AUTH_TOKEN" --server="$SERVER" --grpc-web app wait "$APP" --operation --timeout 180 2>/dev/null; then
+            echo "::error::Timed out waiting for in-progress operation on $APP to finish"
+            exit 1
+          fi
           argocd --auth-token="$AUTH_TOKEN" --server="$SERVER" --grpc-web app sync "$APP"
         fi
       env:
