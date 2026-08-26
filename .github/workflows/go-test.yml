@@ -9,6 +9,8 @@ on:
         required: false
       CODECOV_TOKEN:
         required: false
+      GIT_PRIVATE_TOKEN:
+        required: false
     inputs:
       runner-profile:
         description: Namespace runner profile
@@ -52,6 +54,7 @@ jobs:
         with:
           nscloud-cache: 'true'
           nix-extra-flags: ${{ inputs.nix-extra-flags }}
+          git-private-token: ${{ secrets.GIT_PRIVATE_TOKEN }}
 
       - name: Run tests
         run: >

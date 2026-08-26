@@ -5,6 +5,8 @@ on:
     secrets:
       SPEAKEASY_API_KEY:
         required: false
+      GIT_PRIVATE_TOKEN:
+        required: false
     inputs:
       runner-profile:
         description: Namespace runner profile
@@ -40,6 +42,7 @@ jobs:
         with:
           cache-nix-store: ${{ inputs.cache-nix-store }}
           nix-extra-flags: ${{ inputs.nix-extra-flags }}
+          git-private-token: ${{ secrets.GIT_PRIVATE_TOKEN }}
 
       - name: Run pre-commit
         run: >
