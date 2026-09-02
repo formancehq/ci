@@ -36,6 +36,18 @@ on:
         description: Extra flags for nix develop
         type: string
         default: ''
+      command:
+        description: Raw shell command to run instead of just $test-target (e.g. "pnpm run test")
+        type: string
+        default: ''
+      pnpm-cache:
+        description: Enable pnpm store caching (for JS/TS repos)
+        type: boolean
+        default: false
+      skip-go:
+        description: Skip Go environment extraction and caching (for non-Go repos)
+        type: boolean
+        default: false
 
 jobs:
   Test:
@@ -55,19 +67,40 @@ jobs:
           nscloud-cache: 'true'
           nix-extra-flags: ${{ inputs.nix-extra-flags }}
           git-private-token: ${{ secrets.GIT_PRIVATE_TOKEN }}
+          skip-go: ${{ inputs.skip-go }}
+
+      - name: Get pnpm store path
+        if: inputs.pnpm-cache
+        id: pnpm-store
+        run: echo "path=$(nix develop --impure $NIX_EXTRA_FLAGS --command pnpm store path)" >> "$GITHUB_OUTPUT"
+        env:
+          NIX_EXTRA_FLAGS: ${{ inputs.nix-extra-flags }}
+
+      - name: Cache pnpm store
+        if: inputs.pnpm-cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-
 
       - name: Run tests
-        run: >
-          nix develop --impure $NIX_EXTRA_FLAGS
-          --command just $TEST_TARGET
+        run: |
+          if [ -n "$COMMAND" ]; then
+            nix develop --impure $NIX_EXTRA_FLAGS --command bash -c "$COMMAND"
+          else
+            nix develop --impure $NIX_EXTRA_FLAGS --command just $TEST_TARGET
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.NUMARY_GITHUB_TOKEN }}
           SPEAKEASY_API_KEY: ${{ secrets.SPEAKEASY_API_KEY }}
           NIX_EXTRA_FLAGS: ${{ inputs.nix-extra-flags }}
           TEST_TARGET: ${{ inputs.test-target }}
+          COMMAND: ${{ inputs.command }}
 
       - name: Run extra test targets
-        if: inputs.extra-test-targets != ''
+        if: inputs.extra-test-targets != '' && inputs.command == ''
         shell: bash
         run: |
           for target in $EXTRA_TEST_TARGETS; do

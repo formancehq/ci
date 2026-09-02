@@ -1,0 +1,68 @@
+name: Go Test Coverage
+
+on:
+  workflow_call:
+    secrets:
+      CODECOV_TOKEN:
+        required: false
+      GIT_PRIVATE_TOKEN:
+        required: false
+    inputs:
+      runner-profile:
+        description: Namespace runner profile
+        type: string
+        default: namespace-profile-linux-amd64-2vcpu
+      coverage-files:
+        description: Comma-separated coverage file paths for Codecov
+        type: string
+        default: ''
+      coverage-pattern:
+        description: Artifact name pattern to download
+        type: string
+        default: 'coverage-*'
+      post-download-command:
+        description: Shell command to run after downloading artifacts (e.g. "just coverage" to merge files)
+        type: string
+        default: ''
+      nix-extra-flags:
+        description: Extra flags for nix develop (only used when post-download-command is set)
+        type: string
+        default: ''
+
+jobs:
+  Test:
+    name: Test
+    runs-on: ${{ inputs.runner-profile }}
+    permissions:
+      contents: read
+    steps:
+      - uses: namespacelabs/nscloud-checkout-action@v9
+        if: inputs.post-download-command != ''
+        with:
+          fetch-depth: 0
+          dissociate: true
+
+      - uses: formancehq/ci/actions/setup-nix@main
+        if: inputs.post-download-command != ''
+        with:
+          nix-extra-flags: ${{ inputs.nix-extra-flags }}
+          git-private-token: ${{ secrets.GIT_PRIVATE_TOKEN }}
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: ${{ inputs.coverage-pattern }}
+          merge-multiple: true
+
+      - name: Post-download processing
+        if: inputs.post-download-command != ''
+        run: nix develop --impure $NIX_EXTRA_FLAGS --command bash -c "$POST_DOWNLOAD_COMMAND"
+        env:
+          NIX_EXTRA_FLAGS: ${{ inputs.nix-extra-flags }}
+          POST_DOWNLOAD_COMMAND: ${{ inputs.post-download-command }}
+
+      - uses: codecov/codecov-action@v7.0.0
+        if: inputs.coverage-files != ''
+        with:
+          files: ${{ inputs.coverage-files }}
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

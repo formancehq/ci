@@ -24,6 +24,18 @@ on:
         description: Cache /nix store via Namespace (disable for repos with their own nix caching)
         type: string
         default: 'true'
+      command:
+        description: Raw shell command to run instead of just $pre-commit-target (e.g. "pnpm run qa")
+        type: string
+        default: ''
+      pnpm-cache:
+        description: Enable pnpm store caching (for JS/TS repos)
+        type: boolean
+        default: false
+      skip-go:
+        description: Skip Go environment extraction and caching (for non-Go repos)
+        type: boolean
+        default: false
 
 jobs:
   Dirty:
@@ -43,15 +55,36 @@ jobs:
           cache-nix-store: ${{ inputs.cache-nix-store }}
           nix-extra-flags: ${{ inputs.nix-extra-flags }}
           git-private-token: ${{ secrets.GIT_PRIVATE_TOKEN }}
+          skip-go: ${{ inputs.skip-go }}
+
+      - name: Get pnpm store path
+        if: inputs.pnpm-cache
+        id: pnpm-store
+        run: echo "path=$(nix develop --impure $NIX_EXTRA_FLAGS --command pnpm store path)" >> "$GITHUB_OUTPUT"
+        env:
+          NIX_EXTRA_FLAGS: ${{ inputs.nix-extra-flags }}
+
+      - name: Cache pnpm store
+        if: inputs.pnpm-cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-
 
       - name: Run pre-commit
-        run: >
-          nix develop --impure $NIX_EXTRA_FLAGS
-          --command just $PRE_COMMIT_TARGET
+        run: |
+          if [ -n "$COMMAND" ]; then
+            nix develop --impure $NIX_EXTRA_FLAGS --command bash -c "$COMMAND"
+          else
+            nix develop --impure $NIX_EXTRA_FLAGS --command just $PRE_COMMIT_TARGET
+          fi
         env:
           SPEAKEASY_API_KEY: ${{ secrets.SPEAKEASY_API_KEY }}
           NIX_EXTRA_FLAGS: ${{ inputs.nix-extra-flags }}
           PRE_COMMIT_TARGET: ${{ inputs.pre-commit-target }}
+          COMMAND: ${{ inputs.command }}
 
       - name: Assert clean worktree
         shell: bash
