@@ -7,6 +7,8 @@ on:
         required: false
       GIT_PRIVATE_TOKEN:
         required: false
+      NUMARY_GITHUB_TOKEN:
+        required: false
     inputs:
       runner-profile:
         description: Namespace runner profile
@@ -82,6 +84,7 @@ jobs:
           fi
         env:
           SPEAKEASY_API_KEY: ${{ secrets.SPEAKEASY_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.NUMARY_GITHUB_TOKEN }}
           NIX_EXTRA_FLAGS: ${{ inputs.nix-extra-flags }}
           PRE_COMMIT_TARGET: ${{ inputs.pre-commit-target }}
           COMMAND: ${{ inputs.command }}
