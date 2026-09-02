@@ -22,6 +22,10 @@ inputs:
     description: GitHub PAT for private formancehq repo access
     required: false
     default: ''
+  skip-go:
+    description: Skip Go environment extraction and caching (for non-Go repos)
+    required: false
+    default: 'false'
 
 runs:
   using: composite
@@ -40,9 +44,12 @@ runs:
       shell: bash
       env:
         GIT_PRIVATE_TOKEN: ${{ inputs.git-private-token }}
-      run: git config --global url."https://${GIT_PRIVATE_TOKEN}@github.com/formancehq/".insteadOf "https://github.com/formancehq/"
+      run: |
+        git config --global url."https://${GIT_PRIVATE_TOKEN}@github.com/formancehq/".insteadOf "https://github.com/formancehq/"
+        echo "GOPRIVATE=github.com/formancehq/*" >> "$GITHUB_ENV"
 
     - name: Extract Go environment
+      if: inputs.skip-go != 'true'
       id: go-env
       shell: bash
       env:
@@ -52,7 +59,7 @@ runs:
         cat /tmp/goenv.txt >> "$GITHUB_OUTPUT"
 
     - name: Cache Go modules and build artifacts
-      if: inputs.nscloud-cache != 'false'
+      if: inputs.nscloud-cache != 'false' && inputs.skip-go != 'true'
       uses: namespacelabs/nscloud-cache-action@v1
       with:
         path: |
