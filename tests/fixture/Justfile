@@ -1,0 +1,7 @@
+pre-commit:
+    go mod tidy
+    go build ./...
+    go vet ./...
+
+tests:
+    go test ./... -v

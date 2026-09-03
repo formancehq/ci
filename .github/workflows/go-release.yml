@@ -83,6 +83,37 @@ jobs:
           NIX_EXTRA_FLAGS: ${{ inputs.nix-extra-flags }}
           PARALLELISM_FLAG: ${{ inputs.goreleaser-parallelism > 0 && format('--parallelism={0}', inputs.goreleaser-parallelism) || '' }}
 
+      - name: Verify release artifacts
+        run: |
+          echo "::group::GoReleaser artifacts"
+          if [ -f dist/artifacts.json ]; then
+            IMAGES=$(jq -r '.[] | select(.type == "Docker Image") | .name' dist/artifacts.json)
+            BINARIES=$(jq -r '.[] | select(.type == "Archive") | .name' dist/artifacts.json)
+            CHECKSUMS=$(jq -r '.[] | select(.type == "Checksum") | .name' dist/artifacts.json)
+
+            echo "Docker images:"
+            echo "$IMAGES" | while read -r img; do [ -n "$img" ] && echo "  ✓ $img"; done
+
+            echo "Archives:"
+            echo "$BINARIES" | while read -r bin; do [ -n "$bin" ] && echo "  ✓ $bin"; done
+
+            echo "Checksums:"
+            echo "$CHECKSUMS" | while read -r cs; do [ -n "$cs" ] && echo "  ✓ $cs"; done
+
+            TOTAL=$(jq length dist/artifacts.json)
+            echo ""
+            echo "Total artifacts: $TOTAL"
+
+            if [ "$TOTAL" -eq 0 ]; then
+              echo "::error::GoReleaser produced zero artifacts"
+              exit 1
+            fi
+          else
+            echo "::error::dist/artifacts.json not found — GoReleaser may not have run"
+            exit 1
+          fi
+          echo "::endgroup::"
+
       - name: Generate attestations
         if: inputs.enable-attestations
         uses: actions/attest-build-provenance@v2

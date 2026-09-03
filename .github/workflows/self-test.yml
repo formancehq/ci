@@ -1,0 +1,76 @@
+name: Self Test
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/go-dirty.yml'
+      - '.github/workflows/go-test.yml'
+      - '.github/workflows/go-pr.yml'
+      - '.github/workflows/go-test-coverage.yml'
+      - 'actions/setup-nix/**'
+      - 'actions/setup-release/**'
+      - 'tests/fixture/**'
+      - '.github/workflows/self-test.yml'
+  pull_request:
+    paths:
+      - '.github/workflows/go-dirty.yml'
+      - '.github/workflows/go-test.yml'
+      - '.github/workflows/go-pr.yml'
+      - '.github/workflows/go-test-coverage.yml'
+      - 'actions/setup-nix/**'
+      - 'actions/setup-release/**'
+      - 'tests/fixture/**'
+      - '.github/workflows/self-test.yml'
+
+jobs:
+  SetupNix:
+    name: Setup Nix
+    runs-on: namespace-profile-linux-amd64-2vcpu
+    steps:
+      - uses: namespacelabs/nscloud-checkout-action@v9
+        with:
+          fetch-depth: 0
+          dissociate: true
+
+      - uses: ./actions/setup-nix
+        with:
+          skip-go: 'false'
+
+      - name: Verify toolchain
+        run: |
+          nix develop --impure --command go version
+          nix develop --impure --command just --version
+
+  SetupRelease:
+    name: Setup Release
+    runs-on: namespace-profile-linux-amd64-2vcpu
+    permissions:
+      packages: read
+    steps:
+      - uses: namespacelabs/nscloud-checkout-action@v9
+        with:
+          fetch-depth: 0
+          dissociate: true
+
+      - uses: ./actions/setup-release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify container tooling
+        run: |
+          docker buildx version
+          nix develop --impure --command go version
+
+  Dirty:
+    needs: [SetupNix, SetupRelease]
+    uses: ./.github/workflows/go-dirty.yml
+    with:
+      command: "cd tests/fixture && just pre-commit && cd ../.. && git diff --exit-code"
+
+  Tests:
+    needs: [SetupNix, SetupRelease]
+    uses: ./.github/workflows/go-test.yml
+    with:
+      command: "cd tests/fixture && just tests"
