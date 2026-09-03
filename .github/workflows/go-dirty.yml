@@ -9,6 +9,8 @@ on:
         required: false
       NUMARY_GITHUB_TOKEN:
         required: false
+      CI_METRICS_TOKEN:
+        required: false
     inputs:
       runner-profile:
         description: Namespace runner profile
@@ -38,6 +40,10 @@ on:
         description: Skip Go environment extraction and caching (for non-Go repos)
         type: boolean
         default: false
+      metrics-push-endpoint:
+        description: Victoria Metrics push endpoint URL for CI metrics (skip if empty)
+        type: string
+        default: ''
 
 jobs:
   Dirty:
@@ -52,6 +58,7 @@ jobs:
           dissociate: true
 
       - name: Setup Nix and caching
+        id: setup-nix
         uses: formancehq/ci/actions/setup-nix@main
         with:
           cache-nix-store: ${{ inputs.cache-nix-store }}
@@ -101,3 +108,14 @@ jobs:
             echo "::error::Working tree is dirty after pre-commit. Run 'just $PRE_COMMIT_TARGET' locally and commit the changes."
             exit 1
           fi
+
+      - name: Report CI metrics
+        if: always() && inputs.metrics-push-endpoint != ''
+        uses: formancehq/ci/actions/report-ci-metrics@main
+        with:
+          skip-go: ${{ inputs.skip-go }}
+          nix-extra-flags: ${{ inputs.nix-extra-flags }}
+          push-endpoint: ${{ inputs.metrics-push-endpoint }}
+          push-token: ${{ secrets.CI_METRICS_TOKEN }}
+          nix-cache-hit: ${{ steps.setup-nix.outputs.nix-cache-hit }}
+          go-cache-hit: ${{ steps.setup-nix.outputs.go-cache-hit }}
