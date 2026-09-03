@@ -11,6 +11,8 @@ on:
         required: false
       GIT_PRIVATE_TOKEN:
         required: false
+      CI_METRICS_TOKEN:
+        required: false
     inputs:
       runner-profile:
         description: Namespace runner profile
@@ -48,6 +50,14 @@ on:
         description: Skip Go environment extraction and caching (for non-Go repos)
         type: boolean
         default: false
+      metrics-push-endpoint:
+        description: Victoria Metrics push endpoint URL for CI metrics (skip if empty)
+        type: string
+        default: ''
+      test-results:
+        description: Path to Go test JSON output file for test count metrics
+        type: string
+        default: ''
 
 jobs:
   Test:
@@ -62,6 +72,7 @@ jobs:
           dissociate: true
 
       - name: Setup Nix and caching
+        id: setup-nix
         uses: formancehq/ci/actions/setup-nix@main
         with:
           nscloud-cache: 'true'
@@ -120,3 +131,15 @@ jobs:
         with:
           files: ${{ inputs.coverage-files }}
           token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Report CI metrics
+        if: always()
+        uses: formancehq/ci/actions/report-ci-metrics@main
+        with:
+          skip-go: ${{ inputs.skip-go }}
+          nix-extra-flags: ${{ inputs.nix-extra-flags }}
+          push-endpoint: ${{ inputs.metrics-push-endpoint }}
+          push-token: ${{ secrets.CI_METRICS_TOKEN }}
+          test-results: ${{ inputs.test-results }}
+          nix-cache-hit: ${{ steps.setup-nix.outputs.nix-cache-hit }}
+          go-cache-hit: ${{ steps.setup-nix.outputs.go-cache-hit }}
