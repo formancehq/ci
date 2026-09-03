@@ -95,3 +95,23 @@ jobs:
           NIX_EXTRA_FLAGS: ${{ inputs.nix-extra-flags }}
           BUILD_TARGET: ${{ inputs.build-target }}
           PARALLELISM_FLAG: ${{ inputs.goreleaser-parallelism > 0 && format('--parallelism={0}', inputs.goreleaser-parallelism) || '' }}
+
+      - name: Verify build artifacts
+        run: |
+          echo "::group::GoReleaser artifacts"
+          if [ -f dist/artifacts.json ]; then
+            TOTAL=$(jq length dist/artifacts.json)
+            echo "Docker images:"
+            jq -r '.[] | select(.type == "Docker Image") | "  ✓ \(.name)"' dist/artifacts.json
+            echo "Archives:"
+            jq -r '.[] | select(.type == "Archive") | "  ✓ \(.name)"' dist/artifacts.json
+            echo ""
+            echo "Total artifacts: $TOTAL"
+            if [ "$TOTAL" -eq 0 ]; then
+              echo "::error::GoReleaser produced zero artifacts"
+              exit 1
+            fi
+          else
+            echo "::warning::dist/artifacts.json not found — build may use a non-GoReleaser path"
+          fi
+          echo "::endgroup::"
