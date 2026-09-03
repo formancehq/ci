@@ -1,0 +1,158 @@
+name: Report CI Metrics
+description: Collect cache stats and job metrics, write to job summary and optionally push to Victoria Metrics
+
+inputs:
+  push-endpoint:
+    description: Victoria Metrics /api/v1/import/prometheus endpoint URL (skip push if empty)
+    required: false
+    default: ''
+  push-token:
+    description: Bearer token for push endpoint authentication
+    required: false
+    default: ''
+  job-name:
+    description: Job name label for metrics (defaults to github.job)
+    required: false
+    default: ''
+  skip-go:
+    description: Skip Go cache stats (for non-Go repos)
+    required: false
+    default: 'false'
+  nix-extra-flags:
+    description: Extra flags for nix develop (needed for go env in Go repos)
+    required: false
+    default: ''
+  nix-cache-hit:
+    description: Whether the Nix store was restored from cache ('true'/'false')
+    required: false
+    default: ''
+  go-cache-hit:
+    description: Whether the Go module/build cache was restored ('true'/'false')
+    required: false
+    default: ''
+  test-results:
+    description: Path to Go test JSON output (go test -json) for test count metrics
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Collect metrics
+      if: always()
+      id: metrics
+      shell: bash
+      env:
+        REPO: ${{ github.repository }}
+        JOB_NAME: ${{ inputs.job-name || github.job }}
+        WORKFLOW: ${{ github.workflow }}
+        RUN_ID: ${{ github.run_id }}
+        RUN_ATTEMPT: ${{ github.run_attempt }}
+        RUNNER_PROFILE: ${{ runner.name }}
+        SKIP_GO: ${{ inputs.skip-go }}
+        NIX_EXTRA_FLAGS: ${{ inputs.nix-extra-flags }}
+        NIX_CACHE_HIT_INPUT: ${{ inputs.nix-cache-hit }}
+        GO_CACHE_HIT_INPUT: ${{ inputs.go-cache-hit }}
+        TEST_RESULTS: ${{ inputs.test-results }}
+        JOB_STATUS: ${{ job.status }}
+      run: |
+        METRICS_FILE="${RUNNER_TEMP}/ci-metrics.prom"
+        TIMESTAMP_MS=$(date +%s%3N)
+        REPO_SHORT="${REPO#*/}"
+        escape_label() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\n/\\n/g'; }
+        LABELS="repo=\"$(escape_label "$REPO_SHORT")\",job=\"$(escape_label "$JOB_NAME")\",workflow=\"$(escape_label "$WORKFLOW")\""
+
+        echo "## CI Metrics" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Metric | Value |" >> "$GITHUB_STEP_SUMMARY"
+        echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+
+        # Nix store size
+        if [ -d /nix/store ]; then
+          NIX_SIZE=$(du -sb /nix/store 2>/dev/null | cut -f1 || echo 0)
+          NIX_SIZE_MB=$((NIX_SIZE / 1048576))
+          echo "ci_nix_store_bytes{${LABELS}} ${NIX_SIZE} ${TIMESTAMP_MS}" >> "$METRICS_FILE"
+          echo "| Nix store | ${NIX_SIZE_MB} MB |" >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+        NIX_CACHE_HIT=0
+        if [ "$NIX_CACHE_HIT_INPUT" = "true" ]; then
+          NIX_CACHE_HIT=1
+        fi
+        echo "ci_nix_cache_hit{${LABELS}} ${NIX_CACHE_HIT} ${TIMESTAMP_MS}" >> "$METRICS_FILE"
+        echo "| Nix cache hit | ${NIX_CACHE_HIT} |" >> "$GITHUB_STEP_SUMMARY"
+
+        # Go module cache
+        if [ "$SKIP_GO" != "true" ]; then
+          GOMODCACHE=$(nix develop --impure $NIX_EXTRA_FLAGS --command go env GOMODCACHE 2>/dev/null || echo "")
+          if [ -n "$GOMODCACHE" ] && [ -d "$GOMODCACHE" ]; then
+            GO_CACHE_SIZE=$(du -sb "$GOMODCACHE" 2>/dev/null | cut -f1 || echo 0)
+            GO_CACHE_SIZE_MB=$((GO_CACHE_SIZE / 1048576))
+            GO_CACHE_HIT=0
+            if [ "$GO_CACHE_HIT_INPUT" = "true" ]; then
+              GO_CACHE_HIT=1
+            fi
+            echo "ci_go_module_cache_bytes{${LABELS}} ${GO_CACHE_SIZE} ${TIMESTAMP_MS}" >> "$METRICS_FILE"
+            echo "ci_go_module_cache_hit{${LABELS}} ${GO_CACHE_HIT} ${TIMESTAMP_MS}" >> "$METRICS_FILE"
+            echo "| Go module cache | ${GO_CACHE_SIZE_MB} MB (hit: ${GO_CACHE_HIT}) |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          GOCACHE=$(nix develop --impure $NIX_EXTRA_FLAGS --command go env GOCACHE 2>/dev/null || echo "")
+          if [ -n "$GOCACHE" ] && [ -d "$GOCACHE" ]; then
+            GO_BUILD_SIZE=$(du -sb "$GOCACHE" 2>/dev/null | cut -f1 || echo 0)
+            GO_BUILD_SIZE_MB=$((GO_BUILD_SIZE / 1048576))
+            echo "ci_go_build_cache_bytes{${LABELS}} ${GO_BUILD_SIZE} ${TIMESTAMP_MS}" >> "$METRICS_FILE"
+            echo "| Go build cache | ${GO_BUILD_SIZE_MB} MB |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+        fi
+
+        # Test results (if go test -json output provided)
+        if [ -n "$TEST_RESULTS" ] && [ -f "$TEST_RESULTS" ]; then
+          PASS=$(jq -r 'select(.Test != null and .Action == "pass") | .Test' "$TEST_RESULTS" 2>/dev/null | wc -l | tr -d ' ')
+          FAIL=$(jq -r 'select(.Test != null and .Action == "fail") | .Test' "$TEST_RESULTS" 2>/dev/null | wc -l | tr -d ' ')
+          SKIP=$(jq -r 'select(.Test != null and .Action == "skip") | .Test' "$TEST_RESULTS" 2>/dev/null | wc -l | tr -d ' ')
+          echo "ci_test_count{${LABELS},result=\"pass\"} ${PASS} ${TIMESTAMP_MS}" >> "$METRICS_FILE"
+          echo "ci_test_count{${LABELS},result=\"fail\"} ${FAIL} ${TIMESTAMP_MS}" >> "$METRICS_FILE"
+          echo "ci_test_count{${LABELS},result=\"skip\"} ${SKIP} ${TIMESTAMP_MS}" >> "$METRICS_FILE"
+          echo "| Tests passed | ${PASS} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Tests failed | ${FAIL} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Tests skipped | ${SKIP} |" >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+        # Job status
+        STATUS_VAL=1
+        if [ "$JOB_STATUS" != "success" ]; then
+          STATUS_VAL=0
+        fi
+        echo "ci_job_success{${LABELS}} ${STATUS_VAL} ${TIMESTAMP_MS}" >> "$METRICS_FILE"
+        echo "| Job status | ${JOB_STATUS} |" >> "$GITHUB_STEP_SUMMARY"
+
+        echo "metrics-file=${METRICS_FILE}" >> "$GITHUB_OUTPUT"
+
+    - name: Push metrics
+      if: always() && inputs.push-endpoint != ''
+      shell: bash
+      env:
+        PUSH_ENDPOINT: ${{ inputs.push-endpoint }}
+        PUSH_TOKEN: ${{ inputs.push-token }}
+        METRICS_FILE: ${{ steps.metrics.outputs.metrics-file }}
+      run: |
+        if [ ! -f "$METRICS_FILE" ]; then
+          echo "No metrics file found, skipping push"
+          exit 0
+        fi
+
+        CURL_ARGS=(-s -w "%{http_code}" --max-time 10)
+        if [ -n "$PUSH_TOKEN" ]; then
+          CURL_ARGS+=(-H "Authorization: Bearer ${PUSH_TOKEN}")
+        fi
+
+        if HTTP_CODE=$(curl "${CURL_ARGS[@]}" --data-binary @"$METRICS_FILE" "${PUSH_ENDPOINT}" 2>/dev/null); then
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "Metrics pushed successfully (HTTP ${HTTP_CODE})"
+          else
+            echo "::warning::Failed to push metrics (HTTP ${HTTP_CODE})"
+          fi
+        else
+          echo "::warning::Metrics push failed — curl transport error (endpoint unreachable or timed out)"
+        fi

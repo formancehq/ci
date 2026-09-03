@@ -27,10 +27,19 @@ inputs:
     required: false
     default: 'false'
 
+outputs:
+  nix-cache-hit:
+    description: Whether the Nix store was restored from cache
+    value: ${{ steps.nix-cache.outputs.cache-hit }}
+  go-cache-hit:
+    description: Whether the Go module/build cache was restored
+    value: ${{ steps.go-cache.outputs.cache-hit }}
+
 runs:
   using: composite
   steps:
     - name: Cache Nix store
+      id: nix-cache
       if: (inputs.cache-nix-store != '' && inputs.cache-nix-store != 'false') || (inputs.cache-nix-store == '' && inputs.nscloud-cache != 'false')
       uses: namespacelabs/nscloud-cache-action@v1
       with:
@@ -59,6 +68,7 @@ runs:
         cat /tmp/goenv.txt >> "$GITHUB_OUTPUT"
 
     - name: Cache Go modules and build artifacts
+      id: go-cache
       if: inputs.nscloud-cache != 'false' && inputs.skip-go != 'true'
       uses: namespacelabs/nscloud-cache-action@v1
       with:
