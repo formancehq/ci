@@ -26,7 +26,7 @@ Runs pre-commit validation inside a Nix devshell and asserts the working tree is
 
 ```yaml
 Dirty:
-  uses: formancehq/ci/.github/workflows/go-dirty.yml@main
+  uses: formancehq/ci/.github/workflows/go-dirty.yml@v1
   with:
     runner-profile: namespace-profile-linux-amd64-2vcpu
   secrets:
@@ -38,7 +38,7 @@ For JS/TS repos:
 
 ```yaml
 Dirty:
-  uses: formancehq/ci/.github/workflows/go-dirty.yml@main
+  uses: formancehq/ci/.github/workflows/go-dirty.yml@v1
   with:
     command: "pnpm run qa"
     pnpm-cache: true

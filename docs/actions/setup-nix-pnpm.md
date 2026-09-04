@@ -11,5 +11,5 @@ Installs Nix with flake caching and pnpm store cache for JS/TS repos. Uses `nix-
 ## Example
 
 ```yaml
-- uses: formancehq/ci/actions/setup-nix-pnpm@main
+- uses: formancehq/ci/actions/setup-nix-pnpm@v1
 ```

@@ -15,7 +15,7 @@ Creates and pushes a multi-arch Docker manifest from per-architecture images.
 ## Example
 
 ```yaml
-- uses: formancehq/ci/actions/docker-manifest@main
+- uses: formancehq/ci/actions/docker-manifest@v1
   with:
     image: ghcr.io/formancehq/console-v3
     tag: ${{ github.sha }}

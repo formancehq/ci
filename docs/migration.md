@@ -4,7 +4,7 @@
 
 ### 1. Workflow name
 
-Set `name: Default` at the top of `.github/workflows/main.yml`. GitHub constructs check names as `WorkflowName / CallerJobName / CalleeJobName`, so the org ruleset expects `Default / Dirty / Dirty` and `Default / Tests / Test`.
+Set `name: Default` at the top of `.github/workflows/main.yml`. GitHub constructs check run names for reusable workflows as `CallerJobName / CalleeJobName`. The org ruleset expects `Dirty / Dirty` and `Tests / Test`. Note: the GitHub UI displays these with the workflow name as a visual prefix (e.g. `Default / Dirty / Dirty (pull_request)`), but the actual check context used for ruleset matching does not include the workflow name or event type.
 
 ### 2. PR event types
 
@@ -23,7 +23,7 @@ on:
 
 ```yaml
 Dirty:
-  uses: formancehq/ci/.github/workflows/go-dirty.yml@main
+  uses: formancehq/ci/.github/workflows/go-dirty.yml@v1
   secrets:
     GIT_PRIVATE_TOKEN: ${{ secrets.NUMARY_GITHUB_TOKEN }}
 ```
@@ -34,7 +34,7 @@ See [go-dirty.yml docs](workflows/go-dirty.md) for available inputs (`runner-pro
 
 ```yaml
 Tests:
-  uses: formancehq/ci/.github/workflows/go-test.yml@main
+  uses: formancehq/ci/.github/workflows/go-test.yml@v1
 ```
 
 See [go-test.yml docs](workflows/go-test.md) for inputs (`runner-profile`, `command`, `enable-codecov`).
@@ -44,7 +44,7 @@ See [go-test.yml docs](workflows/go-test.md) for inputs (`runner-profile`, `comm
 ```yaml
 PR:
   if: github.event_name == 'pull_request'
-  uses: formancehq/ci/.github/workflows/go-pr.yml@main
+  uses: formancehq/ci/.github/workflows/go-pr.yml@v1
   permissions:
     pull-requests: read
     statuses: write
@@ -52,7 +52,7 @@ PR:
 
 ### 6. Verify
 
-Open a PR. GitHub should show `Default / Dirty / Dirty` and `Default / Tests / Test`. If the repo has both checks, ensure it is listed in `ruleset_ci_repositories` in `infra2/terraform/github/rulesets.tf`.
+Open a PR. The GitHub UI will show checks as `Default / Dirty / Dirty (pull_request)` and `Default / Tests / Test (pull_request)`. The actual check contexts used for ruleset matching are `Dirty / Dirty` and `Tests / Test` (without the workflow name prefix or event suffix). If the repo has both checks, ensure it is listed in `ruleset_ci_repositories` in `infra2/terraform/github/rulesets.tf`.
 
 ## Build and release (optional)
 
@@ -61,7 +61,7 @@ Repos that build Docker images via GoReleaser:
 ```yaml
 GoReleaser:
   needs: [Dirty]
-  uses: formancehq/ci/.github/workflows/go-build.yml@main
+  uses: formancehq/ci/.github/workflows/go-build.yml@v1
   with:
     build-condition: main-and-label
     build-label: build-images
@@ -89,7 +89,7 @@ TestsUnit:
   steps:
     - uses: namespacelabs/nscloud-checkout-action@v9
       with: { fetch-depth: 0, dissociate: true }
-    - uses: formancehq/ci/actions/setup-nix@main
+    - uses: formancehq/ci/actions/setup-nix@v1
       with: { git-private-token: "${{ secrets.NUMARY_GITHUB_TOKEN }}" }
     - run: nix develop --impure --command just tests-unit
     - uses: actions/upload-artifact@v7
@@ -97,7 +97,7 @@ TestsUnit:
 
 Tests:
   needs: [TestsUnit, TestsIntegration]
-  uses: formancehq/ci/.github/workflows/go-test-coverage.yml@main
+  uses: formancehq/ci/.github/workflows/go-test-coverage.yml@v1
   with:
     coverage-files: coverage/coverage_unit.txt,coverage/coverage_integration.txt
     coverage-pattern: coverage-*
@@ -113,7 +113,7 @@ For JS/TS repos without a Go toolchain in their Nix shell, pass `skip-go: true` 
 
 ```yaml
 Dirty:
-  uses: formancehq/ci/.github/workflows/go-dirty.yml@main
+  uses: formancehq/ci/.github/workflows/go-dirty.yml@v1
   with:
     command: "pnpm run qa"
     pnpm-cache: true

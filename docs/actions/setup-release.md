@@ -15,7 +15,7 @@ Extends `setup-nix` with GHCR login, QEMU, and Namespace Buildx for container bu
 ## Example
 
 ```yaml
-- uses: formancehq/ci/actions/setup-release@main
+- uses: formancehq/ci/actions/setup-release@v1
   with:
     token: ${{ secrets.NUMARY_GITHUB_TOKEN }}
 ```

@@ -4,13 +4,15 @@ Centralized reusable GitHub Actions workflows and composite actions for Formance
 
 ## Check naming
 
-All caller workflows must use `name: Default`. GitHub Actions constructs check names as:
+All caller workflows must use `name: Default`. GitHub Actions constructs check run names for reusable workflows as:
 
 ```
-WorkflowName / CallerJobName / CalleeJobName
+CallerJobName / CalleeJobName
 ```
 
-For example, `name: Default` with a job named `Dirty` calling `go-dirty.yml` produces `Default / Dirty / Dirty`. The org rulesets require `Default / Dirty / Dirty` and `Default / Tests / Test`.
+For example, a job named `Dirty` calling `go-dirty.yml` (which has a job named `Dirty`) produces `Dirty / Dirty`. The org rulesets require `Dirty / Dirty` and `Tests / Test`.
+
+The GitHub UI displays checks with the workflow name as a visual prefix (`Default / Dirty / Dirty (pull_request)`), but the actual check context used for ruleset matching is `Dirty / Dirty` — without the workflow name or event type.
 
 ## Workflows
 
@@ -53,22 +55,22 @@ on:
 jobs:
   PR:
     if: github.event_name == 'pull_request'
-    uses: formancehq/ci/.github/workflows/go-pr.yml@main
+    uses: formancehq/ci/.github/workflows/go-pr.yml@v1
     permissions:
       pull-requests: read
       statuses: write
 
   Dirty:
-    uses: formancehq/ci/.github/workflows/go-dirty.yml@main
+    uses: formancehq/ci/.github/workflows/go-dirty.yml@v1
     secrets:
       GIT_PRIVATE_TOKEN: ${{ secrets.NUMARY_GITHUB_TOKEN }}
 
   Tests:
-    uses: formancehq/ci/.github/workflows/go-test.yml@main
+    uses: formancehq/ci/.github/workflows/go-test.yml@v1
 
   GoReleaser:
     needs: [Dirty]
-    uses: formancehq/ci/.github/workflows/go-build.yml@main
+    uses: formancehq/ci/.github/workflows/go-build.yml@v1
     with:
       build-condition: main-and-label
       build-label: build-images
