@@ -44,7 +44,7 @@ TestsIntegration:
 
 Tests:
   needs: [TestsUnit, TestsIntegration]
-  uses: formancehq/ci/.github/workflows/go-test-coverage.yml@main
+  uses: formancehq/ci/.github/workflows/go-test-coverage.yml@v1
   with:
     coverage-files: coverage/coverage_unit.txt,coverage/coverage_integration.txt
     coverage-pattern: coverage-*

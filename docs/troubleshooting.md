@@ -4,9 +4,9 @@
 
 **Symptom:** Required checks show as "Waiting for status to be reported" and block merging.
 
-**Cause:** GitHub constructs check names as `WorkflowName / CallerJobName / CalleeJobName`. If the workflow is named `Main` instead of `Default`, checks appear as `Main / Dirty / Dirty` but the ruleset expects `Default / Dirty / Dirty`.
+**Cause:** GitHub constructs check contexts for reusable workflows as `CallerJobName / CalleeJobName`. The org ruleset expects `Dirty / Dirty` and `Tests / Test`. The GitHub UI adds the workflow name as a visual prefix (e.g. `Default / Dirty / Dirty (pull_request)`), but the actual check context used for matching does not include the workflow name or event type. If the caller job ID doesn't match (e.g. `DirtyCheck` instead of `Dirty`), the check context becomes `DirtyCheck / Dirty` and won't match.
 
-**Fix:** Set `name: Default` on line 1 of the workflow file. All repos must use the same workflow name for the org ruleset to work.
+**Fix:** Ensure the caller job ID matches the expected pattern — `Dirty` for dirty checks, `Tests` for test checks. Set `name: Default` for consistency across repos, but note this only affects the UI grouping, not the ruleset matching.
 
 ## Skipped job blocks merge
 
@@ -26,7 +26,7 @@
 
 ```yaml
 Dirty:
-  uses: formancehq/ci/.github/workflows/go-dirty.yml@main
+  uses: formancehq/ci/.github/workflows/go-dirty.yml@v1
   secrets:
     GIT_PRIVATE_TOKEN: ${{ secrets.NUMARY_GITHUB_TOKEN }}
 ```
@@ -41,7 +41,7 @@ Dirty:
 
 ```yaml
 Dirty:
-  uses: formancehq/ci/.github/workflows/go-dirty.yml@main
+  uses: formancehq/ci/.github/workflows/go-dirty.yml@v1
   secrets:
     NUMARY_GITHUB_TOKEN: ${{ secrets.NUMARY_GITHUB_TOKEN }}
     GIT_PRIVATE_TOKEN: ${{ secrets.NUMARY_GITHUB_TOKEN }}
@@ -57,7 +57,7 @@ Dirty:
 
 ```yaml
 Dirty:
-  uses: formancehq/ci/.github/workflows/go-dirty.yml@main
+  uses: formancehq/ci/.github/workflows/go-dirty.yml@v1
   with:
     skip-go: true
 ```

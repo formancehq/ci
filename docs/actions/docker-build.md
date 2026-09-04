@@ -31,7 +31,7 @@ Builds and pushes Docker images to GHCR with configurable buildx backend.
 ## Example
 
 ```yaml
-- uses: formancehq/ci/actions/docker-build@main
+- uses: formancehq/ci/actions/docker-build@v1
   with:
     image: ghcr.io/formancehq/my-service
     token: ${{ secrets.NUMARY_GITHUB_TOKEN }}

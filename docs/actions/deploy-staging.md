@@ -26,7 +26,7 @@ Connects to Tailscale via OIDC and deploys to staging via ArgoCD CLI.
 ## Example
 
 ```yaml
-- uses: formancehq/ci/actions/deploy-staging@main
+- uses: formancehq/ci/actions/deploy-staging@v1
   with:
     component: payments
     tag: ${{ github.sha }}

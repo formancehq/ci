@@ -16,7 +16,7 @@ Installs Nix, configures git for private `formancehq` repos, extracts Go environ
 ## Example
 
 ```yaml
-- uses: formancehq/ci/actions/setup-nix@main
+- uses: formancehq/ci/actions/setup-nix@v1
   with:
     git-private-token: ${{ secrets.NUMARY_GITHUB_TOKEN }}
 ```

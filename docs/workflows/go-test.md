@@ -29,7 +29,7 @@ Runs tests inside a Nix devshell with optional Codecov upload.
 
 ```yaml
 Tests:
-  uses: formancehq/ci/.github/workflows/go-test.yml@main
+  uses: formancehq/ci/.github/workflows/go-test.yml@v1
   with:
     runner-profile: namespace-profile-linux-amd64-4vcpu
     enable-codecov: true

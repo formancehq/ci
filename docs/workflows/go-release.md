@@ -26,7 +26,7 @@ Runs GoReleaser for tagged releases with optional SLSA attestations. Triggered b
 
 ```yaml
 Release:
-  uses: formancehq/ci/.github/workflows/go-release.yml@main
+  uses: formancehq/ci/.github/workflows/go-release.yml@v1
   permissions:
     contents: write
     packages: write

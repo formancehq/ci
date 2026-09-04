@@ -30,7 +30,7 @@ Runs GoReleaser CI build with optional GHCR login and multi-arch support. Condit
 ```yaml
 GoReleaser:
   needs: [Dirty]
-  uses: formancehq/ci/.github/workflows/go-build.yml@main
+  uses: formancehq/ci/.github/workflows/go-build.yml@v1
   with:
     build-condition: main-and-label
     build-label: build-images
