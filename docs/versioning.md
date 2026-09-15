@@ -18,11 +18,15 @@ that must be moved to each new `v1.x.y` release for callers to pick up fixes.
 The workflow only matches `v[0-9]+.[0-9]+.[0-9]+`, so pre-releases such as `v1.2.0-rc1`
 never move the major tag.
 
-Updates are serialized through a `major-tag` concurrency group and are forward-only: the
-major tag moves only when its current commit is an ancestor of the released commit. A run
-that would move it backward -- two releases finishing out of order, or a hotfix tagged on an
-older line -- logs a warning and leaves the tag alone. Move it by hand if that hotfix really
-should own the major tag.
+Major tag updates are forward-only: the tag moves only when its current commit is an
+ancestor of the released commit. A run that would move it backward -- two releases finishing
+out of order, or a hotfix tagged on an older line -- logs a warning and leaves the tag alone.
+Move it by hand if that hotfix really should own the major tag.
+
+The push itself is a compare-and-swap (`--force-with-lease` against the tag object read at
+the start of the run), so a release that lands between the check and the write is rejected
+rather than overwritten; the run re-reads and retries. Runs are deliberately not placed in a
+concurrency group: a shared group cancels pending runs and would leave a major tag stale.
 
 ## Constraints
 
