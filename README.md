@@ -2,6 +2,12 @@
 
 Centralized reusable GitHub Actions workflows and composite actions for Formance repositories. Provides shared CI pipelines for validation, testing, building, releasing, and deploying Go and JS/TS services.
 
+## Versioning
+
+Callers pin `@v1`. That is a plain git tag, not a semver range -- GitHub resolves it at run
+time. Pushing a `vX.Y.Z` tag triggers `major-tag.yml`, which force-moves `vX` to the same
+commit, so callers on `@v1` pick up releases automatically. See [docs](docs/versioning.md).
+
 ## Check naming
 
 All caller workflows must use `name: Default`. GitHub Actions constructs check run names for reusable workflows as:

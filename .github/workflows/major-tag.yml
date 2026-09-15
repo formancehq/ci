@@ -1,0 +1,62 @@
+name: Major Tag
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write
+
+jobs:
+  Retag:
+    name: Retag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Move major tag
+        env:
+          TAG: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          MAJOR="${TAG%%.*}"
+
+          for attempt in 1 2 3; do
+            # Re-read the major tag from the remote: the checkout may predate a
+            # release tagged while this run was queued.
+            git fetch --force origin "refs/tags/$MAJOR:refs/tags/$MAJOR" || true
+            # The ref holds the annotated tag object; the lease compares against
+            # that, the ancestry check against the commit it points to.
+            CURRENT_REF="$(git rev-parse -q --verify "refs/tags/$MAJOR" || true)"
+            CURRENT_COMMIT="$(git rev-parse -q --verify "refs/tags/$MAJOR^{commit}" || true)"
+
+            # Forward-only: refuse to roll consumers back to an older commit, which
+            # is what an out-of-order run or a hotfix on an older line would do.
+            if [ -n "$CURRENT_COMMIT" ] && ! git merge-base --is-ancestor "$CURRENT_COMMIT" "$SHA"; then
+              echo "::warning title=Major tag not moved::$MAJOR ($CURRENT_COMMIT) is not an ancestor of $TAG ($SHA); move it manually if $TAG should own $MAJOR"
+              echo "Skipped: $MAJOR stays at $CURRENT_COMMIT, $TAG ($SHA) is not a descendant" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -fa "$MAJOR" -m "Update $MAJOR to $TAG" "$SHA"
+
+            # Compare-and-swap: the push is rejected if another release moved the
+            # tag between the read above and this write. An empty expected value
+            # asserts the tag does not exist yet.
+            if git push "--force-with-lease=refs/tags/$MAJOR:$CURRENT_REF" origin "refs/tags/$MAJOR"; then
+              echo "Moved $MAJOR to $TAG ($SHA)" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+
+            echo "::notice::Lease on $MAJOR was stale (attempt $attempt/3), re-reading"
+            sleep $((attempt * 5))
+          done
+
+          echo "::error title=Major tag not moved::Could not move $MAJOR to $TAG after 3 attempts"
+          exit 1
