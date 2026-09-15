@@ -8,6 +8,12 @@ on:
 permissions:
   contents: write
 
+# Serialize major tag updates so two releases pushed close together cannot
+# interleave their read-check-push sequences.
+concurrency:
+  group: major-tag
+  cancel-in-progress: false
+
 jobs:
   Retag:
     name: Retag
@@ -24,6 +30,20 @@ jobs:
         run: |
           set -euo pipefail
           MAJOR="${TAG%%.*}"
+
+          # Re-read the major tag from the remote: the checkout may predate a
+          # release that was tagged while this run was queued.
+          git fetch --force origin "refs/tags/$MAJOR:refs/tags/$MAJOR" || true
+          CURRENT="$(git rev-parse -q --verify "refs/tags/$MAJOR^{commit}" || true)"
+
+          # Forward-only: refuse to roll consumers back to an older commit, which
+          # is what an out-of-order run or a hotfix on an older line would do.
+          if [ -n "$CURRENT" ] && ! git merge-base --is-ancestor "$CURRENT" "$SHA"; then
+            echo "::warning title=Major tag not moved::$MAJOR ($CURRENT) is not an ancestor of $TAG ($SHA); move it manually if $TAG should own $MAJOR"
+            echo "Skipped: $MAJOR stays at $CURRENT, $TAG ($SHA) is not a descendant" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag -fa "$MAJOR" -m "Update $MAJOR to $TAG" "$SHA"
