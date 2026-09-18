@@ -34,6 +34,10 @@ on:
         description: Extra flags for nix develop
         type: string
         default: ''
+      working-directory:
+        description: Directory holding the justfile whose `release` recipe runs GoReleaser. The Nix dev shell still comes from the repository root.
+        type: string
+        default: '.'
 
 permissions:
   contents: write
@@ -71,10 +75,13 @@ jobs:
           git-private-token: ${{ secrets.GIT_PRIVATE_TOKEN }}
 
       - name: Run release
-        run: >
-          nix develop --impure $NIX_EXTRA_FLAGS
-          --command just release
-          $PARALLELISM_FLAG
+        # The dev shell is resolved from the repository root; only `just` moves
+        # into the working directory, so monorepos release one project per job
+        # without duplicating the GoReleaser toolchain in every sub-flake.
+        run: |
+          # shellcheck disable=SC2016 # the quoted script expands inside the dev shell, not here
+          nix develop --impure $NIX_EXTRA_FLAGS \
+            --command sh -c 'cd "$WORKING_DIRECTORY" && exec just release $PARALLELISM_FLAG'
         env:
           GITHUB_TOKEN: ${{ secrets.NUMARY_GITHUB_TOKEN }}
           SPEAKEASY_API_KEY: ${{ secrets.SPEAKEASY_API_KEY }}
@@ -82,9 +89,13 @@ jobs:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
           NIX_EXTRA_FLAGS: ${{ inputs.nix-extra-flags }}
           PARALLELISM_FLAG: ${{ inputs.goreleaser-parallelism > 0 && format('--parallelism={0}', inputs.goreleaser-parallelism) || '' }}
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
 
       - name: Verify release artifacts
+        env:
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
         run: |
+          cd "$WORKING_DIRECTORY"
           echo "::group::GoReleaser artifacts"
           if [ -f dist/artifacts.json ]; then
             echo "Docker images:"
@@ -114,4 +125,4 @@ jobs:
         if: inputs.enable-attestations
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: dist/checksums.txt
+          subject-path: ${{ inputs.working-directory }}/dist/checksums.txt
