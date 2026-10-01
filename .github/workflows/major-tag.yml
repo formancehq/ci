@@ -9,18 +9,55 @@ permissions:
   contents: write
 
 jobs:
+  Stamp:
+    name: Stamp action refs
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.stamp.outputs.sha }}
+      original-sha: ${{ steps.stamp.outputs.original-sha }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Stamp internal action refs to point release
+        id: stamp
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          echo "original-sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+          find .github/workflows actions -name '*.yml' -exec \
+            sed -i "s|formancehq/ci/\(actions/[^@]*\)@v1$|formancehq/ci/\1@${TAG}|g" {} +
+
+          if git diff --quiet; then
+            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "stamp internal refs to ${TAG}"
+          NEW_SHA="$(git rev-parse HEAD)"
+          git tag -f "$TAG" "$NEW_SHA"
+          git push --force origin "refs/tags/$TAG"
+          echo "sha=${NEW_SHA}" >> "$GITHUB_OUTPUT"
+          echo "Stamped internal action refs to $TAG" >> "$GITHUB_STEP_SUMMARY"
+
   Retag:
     name: Retag
+    needs: [Stamp]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          ref: ${{ needs.Stamp.outputs.sha }}
 
       - name: Move major tag
         env:
           TAG: ${{ github.ref_name }}
-          SHA: ${{ github.sha }}
+          SHA: ${{ needs.Stamp.outputs.sha }}
+          ORIGINAL_SHA: ${{ needs.Stamp.outputs.original-sha }}
         run: |
           set -euo pipefail
           MAJOR="${TAG%%.*}"
@@ -34,9 +71,18 @@ jobs:
             CURRENT_REF="$(git rev-parse -q --verify "refs/tags/$MAJOR" || true)"
             CURRENT_COMMIT="$(git rev-parse -q --verify "refs/tags/$MAJOR^{commit}" || true)"
 
-            # Forward-only: refuse to roll consumers back to an older commit, which
-            # is what an out-of-order run or a hotfix on an older line would do.
-            if [ -n "$CURRENT_COMMIT" ] && ! git merge-base --is-ancestor "$CURRENT_COMMIT" "$SHA"; then
+            # Forward-only: compare original main-line commits, not stamped ones.
+            # Stamped commits are detached from main, so direct ancestry between
+            # stamped SHAs would always fail after the first stamped release.
+            # Only dereference to parent if the commit is a verified stamp commit.
+            CURRENT_ORIGINAL="$CURRENT_COMMIT"
+            if [ -n "$CURRENT_COMMIT" ]; then
+              STAMP_MSG="$(git log -1 --format=%s "$CURRENT_COMMIT" 2>/dev/null || true)"
+              if [[ "$STAMP_MSG" == stamp\ internal\ refs\ to\ v* ]]; then
+                CURRENT_ORIGINAL="$(git rev-parse -q --verify "$CURRENT_COMMIT^" 2>/dev/null || echo "$CURRENT_COMMIT")"
+              fi
+            fi
+            if [ -n "$CURRENT_ORIGINAL" ] && ! git merge-base --is-ancestor "$CURRENT_ORIGINAL" "$ORIGINAL_SHA"; then
               echo "::warning title=Major tag not moved::$MAJOR ($CURRENT_COMMIT) is not an ancestor of $TAG ($SHA); move it manually if $TAG should own $MAJOR"
               echo "Skipped: $MAJOR stays at $CURRENT_COMMIT, $TAG ($SHA) is not a descendant" >> "$GITHUB_STEP_SUMMARY"
               exit 0

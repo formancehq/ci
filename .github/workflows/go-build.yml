@@ -67,7 +67,7 @@ jobs:
 
       - name: Setup Nix and caching
         if: ${{ !inputs.enable-docker }}
-        uses: formancehq/ci/actions/setup-nix@main
+        uses: formancehq/ci/actions/setup-nix@v1
         with:
           nscloud-cache: 'true'
           nix-extra-flags: ${{ inputs.nix-extra-flags }}
@@ -75,7 +75,7 @@ jobs:
 
       - name: Setup Nix, caching, and container tooling
         if: ${{ inputs.enable-docker }}
-        uses: formancehq/ci/actions/setup-release@main
+        uses: formancehq/ci/actions/setup-release@v1
         with:
           token: ${{ secrets.NUMARY_GITHUB_TOKEN }}
           nscloud-cache: 'true'

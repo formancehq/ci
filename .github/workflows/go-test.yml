@@ -62,7 +62,7 @@ jobs:
           dissociate: true
 
       - name: Setup Nix and caching
-        uses: formancehq/ci/actions/setup-nix@main
+        uses: formancehq/ci/actions/setup-nix@v1
         with:
           nscloud-cache: 'true'
           nix-extra-flags: ${{ inputs.nix-extra-flags }}
@@ -93,7 +93,7 @@ jobs:
             nix develop --impure $NIX_EXTRA_FLAGS --command just $TEST_TARGET
           fi
         env:
-          GITHUB_TOKEN: ${{ secrets.NUMARY_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.NUMARY_GITHUB_TOKEN || github.token }}
           SPEAKEASY_API_KEY: ${{ secrets.SPEAKEASY_API_KEY }}
           NIX_EXTRA_FLAGS: ${{ inputs.nix-extra-flags }}
           TEST_TARGET: ${{ inputs.test-target }}
@@ -109,7 +109,7 @@ jobs:
             echo "::endgroup::"
           done
         env:
-          GITHUB_TOKEN: ${{ secrets.NUMARY_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.NUMARY_GITHUB_TOKEN || github.token }}
           SPEAKEASY_API_KEY: ${{ secrets.SPEAKEASY_API_KEY }}
           NIX_EXTRA_FLAGS: ${{ inputs.nix-extra-flags }}
           EXTRA_TEST_TARGETS: ${{ inputs.extra-test-targets }}
