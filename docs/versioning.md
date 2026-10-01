@@ -50,14 +50,12 @@ A full 40-character SHA is required -- GitHub does not resolve abbreviated revis
 `uses:`.
 
 It does not freeze everything the workflow runs. The reusable workflows call the composite
-actions in this repository at `@main`:
+actions in this repository at `@v1`:
 
 ```yaml
-uses: formancehq/ci/actions/setup-nix@main
+uses: formancehq/ci/actions/setup-nix@v1
 ```
 
-GitHub Actions has no expression for "the ref this reusable workflow was resolved at", and
-`./actions/...` inside a reusable workflow resolves against the *caller's* checkout, so the
-pinned-workflow path still executes moving action code. A consumer that needs an actually
-frozen pipeline has to pin the workflow SHA *and* accept that `setup-nix` / `setup-release`
-track `main`.
+At release time, `major-tag.yml` stamps these `@v1` refs to the exact point release
+(`@v1.0.3`), so a SHA-pinned consumer gets fully frozen action code for that release.
+Consumers on the floating `@v1` tag always get the latest point release's stamped actions.
