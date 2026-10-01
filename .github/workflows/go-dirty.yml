@@ -52,7 +52,7 @@ jobs:
           dissociate: true
 
       - name: Setup Nix and caching
-        uses: formancehq/ci/actions/setup-nix@main
+        uses: formancehq/ci/actions/setup-nix@v1
         with:
           cache-nix-store: ${{ inputs.cache-nix-store }}
           nix-extra-flags: ${{ inputs.nix-extra-flags }}
@@ -84,7 +84,7 @@ jobs:
           fi
         env:
           SPEAKEASY_API_KEY: ${{ secrets.SPEAKEASY_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.NUMARY_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.NUMARY_GITHUB_TOKEN || github.token }}
           NIX_EXTRA_FLAGS: ${{ inputs.nix-extra-flags }}
           PRE_COMMIT_TARGET: ${{ inputs.pre-commit-target }}
           COMMAND: ${{ inputs.command }}

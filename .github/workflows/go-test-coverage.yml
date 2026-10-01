@@ -42,7 +42,7 @@ jobs:
           fetch-depth: 0
           dissociate: true
 
-      - uses: formancehq/ci/actions/setup-nix@main
+      - uses: formancehq/ci/actions/setup-nix@v1
         if: inputs.post-download-command != ''
         with:
           nix-extra-flags: ${{ inputs.nix-extra-flags }}
