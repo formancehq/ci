@@ -30,7 +30,6 @@ The GitHub UI displays checks with the workflow name as a visual prefix (`Defaul
 | `go-test-coverage.yml` | Coverage aggregation for parallel test jobs | [docs](docs/workflows/go-test-coverage.md) |
 | `go-build.yml` | GoReleaser CI build + GHCR | [docs](docs/workflows/go-build.md) |
 | `go-release.yml` | GoReleaser tagged release + GHCR | [docs](docs/workflows/go-release.md) |
-| `go-validate.yml` | Composite of pr + dirty + test | -- |
 | `go-codeql.yml` | CodeQL static analysis for Go | -- |
 
 ## Actions
