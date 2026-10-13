@@ -20,7 +20,6 @@ on:
           JSON array of deploy targets. Every target must include "application".
           Simple:  [{"component":"ledger","application":"staging-eu-west-1-hosting-regions"}]
           Custom:  [{"application":"staging-eu-west-1-hosting-foo","parameter":"global.foo.image.tag","source-position":"3"}]
-          For custom targets, parameter is the ArgoCD param key without the tag value — the workflow appends =${{ github.sha }} automatically.
         type: string
         default: '[]'
       goreleaser-parallelism:
