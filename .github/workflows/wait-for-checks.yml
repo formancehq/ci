@@ -1,0 +1,31 @@
+name: Wait for Checks
+
+on:
+  workflow_call:
+    inputs:
+      check-regexp:
+        description: Regex matching check names to wait for
+        type: string
+        default: "Tests / Test|Dirty / Dirty"
+      wait-interval:
+        description: Seconds between polls
+        type: number
+        default: 30
+      timeout-minutes:
+        description: Max wait time in minutes
+        type: number
+        default: 30
+
+jobs:
+  WaitForChecks:
+    runs-on: namespace-profile-linux-amd64-2vcpu
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      checks: read
+    steps:
+      - uses: lewagon/wait-on-check-action@v1.9.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          check-regexp: ${{ inputs.check-regexp }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: ${{ inputs.wait-interval }}
