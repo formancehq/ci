@@ -12,10 +12,7 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        go = pkgs.callPackage "${go-tooling}/pkgs/development/compilers/go/1.26.nix" {
-          buildGo126Module = buildGoModule;
-        };
-        buildGoModule = pkgs.buildGoModule.override { inherit go; };
+        go = go127;
         go127 = pkgs.callPackage "${go-tooling}/pkgs/development/compilers/go/1.27.nix" {
           buildGo127Module = buildGo127Module;
         };
