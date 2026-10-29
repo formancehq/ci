@@ -67,7 +67,7 @@ jobs:
 
       - name: Setup Nix and caching
         if: ${{ !inputs.enable-docker }}
-        uses: formancehq/ci/actions/setup-nix@fix/setup-nix-netrc-auth
+        uses: formancehq/ci/actions/setup-nix@v1
         with:
           nscloud-cache: 'true'
           nix-extra-flags: ${{ inputs.nix-extra-flags }}
