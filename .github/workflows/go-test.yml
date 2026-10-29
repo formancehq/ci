@@ -62,7 +62,7 @@ jobs:
           dissociate: true
 
       - name: Setup Nix and caching
-        uses: formancehq/ci/actions/setup-nix@v1
+        uses: formancehq/ci/actions/setup-nix@fix/setup-nix-netrc-auth
         with:
           nscloud-cache: 'true'
           nix-extra-flags: ${{ inputs.nix-extra-flags }}
