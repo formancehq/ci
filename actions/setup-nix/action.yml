@@ -55,6 +55,11 @@ runs:
         GIT_PRIVATE_TOKEN: ${{ inputs.git-private-token }}
       run: |
         git config --global url."https://${GIT_PRIVATE_TOKEN}@github.com/formancehq/".insteadOf "https://github.com/formancehq/"
+        (umask 077 && { [ -f ~/.netrc ] && awk '/^[[:space:]]*machine[[:space:]]+github\.com([[:space:]]|$)/{s=1;next}/^[[:space:]]*machine[[:space:]]/{s=0}!s' ~/.netrc || true
+          printf 'machine github.com login x-access-token password %s\n' "${GIT_PRIVATE_TOKEN}"
+        } > ~/.netrc.tmp)
+        chmod 600 ~/.netrc.tmp
+        mv ~/.netrc.tmp ~/.netrc
         echo "GOPRIVATE=github.com/formancehq/*" >> "$GITHUB_ENV"
 
     - name: Extract Go environment
