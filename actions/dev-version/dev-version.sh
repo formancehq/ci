@@ -55,6 +55,21 @@ _cmp_num() {
   fi
 }
 
+# _inc_num N: add one to a non-negative decimal integer of any length, as a
+# string, so patches beyond the shell's 64-bit range do not overflow. Sets REPLY.
+_inc_num() {
+  local n=$1 i=$((${#1} - 1)) zeros=""
+  while ((i >= 0)) && [[ ${n:i:1} == 9 ]]; do
+    zeros="${zeros}0"
+    i=$((i - 1))
+  done
+  if ((i < 0)); then
+    REPLY="1${zeros}"
+  else
+    REPLY="${n:0:i}$((${n:i:1} + 1))${zeros}"
+  fi
+}
+
 # _cmp_ident A B: compare two prerelease identifiers (SemVer 11.4.1-11.4.3).
 _cmp_ident() {
   local a_num=false b_num=false
@@ -168,7 +183,8 @@ main() {
   else
     local major minor patch
     IFS=. read -r major minor patch <<<"${base#v}"
-    version="v${major}.${minor}.$((10#$patch + 1))-dev.${distance}.g${short}"
+    _inc_num "$patch"
+    version="v${major}.${minor}.${REPLY}-dev.${distance}.g${short}"
   fi
 
   is_semver "$version" || die "computed version '${version}' is not valid SemVer"

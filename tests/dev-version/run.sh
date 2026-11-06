@@ -63,6 +63,12 @@ assert_order "rfc order: dev sorts between beta and rc" \
 assert_order "large numbers compared numerically" \
   v1.0.0-9 v1.0.0-10 v1.0.0-99999999999999999998 v1.0.0-99999999999999999999 v99999999999999999999.0.0
 
+for inc_case in 0:1 8:9 9:10 19:20 99:100 109:110 999:1000 \
+  9223372036854775807:9223372036854775808 99999999999999999999:100000000000000000000; do
+  _inc_num "${inc_case%%:*}"
+  if [[ $REPLY == "${inc_case#*:}" ]]; then ok "increment ${inc_case%%:*}"; else ko "increment ${inc_case%%:*}" "got '$REPLY', want '${inc_case#*:}'"; fi
+done
+
 for v in v1.2.3 v0.0.0 v1.2.3-0 v1.2.3-alpha.1 v1.2.3-x-y.0a v2.4.2-dev.76.g6399077 v1.2.3-0123abc; do
   if is_semver "$v"; then ok "valid: $v"; else ko "valid: $v"; fi
 done
@@ -133,6 +139,17 @@ expect_version "ref input versions another commit" "v2.4.2-dev.1.g$(short HEAD~2
 new_repo distance0
 commit; git tag v1.0.0
 expect_version "commit on a stable tag" "v1.0.1-dev.0.g$(short)" main
+
+# Patch increments beyond the shell's 64-bit integer range.
+for patch_case in \
+  "9223372036854775806:9223372036854775807" \
+  "9223372036854775807:9223372036854775808" \
+  "99999999999999999999:100000000000000000000" \
+  "18446744073709551615:18446744073709551616"; do
+  new_repo "overflow-${patch_case%%:*}"
+  commit; git tag "v1.0.${patch_case%%:*}"; commit
+  expect_version "patch ${patch_case%%:*} + 1" "v1.0.${patch_case#*:}-dev.1.g$(short)" main
+done
 
 # Prerelease base tag: extend it.
 new_repo prerelease
