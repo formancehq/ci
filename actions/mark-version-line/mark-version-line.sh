@@ -72,7 +72,11 @@ if [[ $(git rev-parse --is-shallow-repository) != false ]]; then
   die "the checkout is shallow: check out the full history (fetch-depth: 0)"
 fi
 
-existing=$(git tag --list "${line}[0-9]*" | head -n 1)
+# Read the whole list before picking a tag: closing a pipe early (head -n 1)
+# makes git die of SIGPIPE once the list exceeds the pipe buffer, which fails
+# the script under pipefail.
+existing=$(git tag --list "${line}[0-9]*")
+existing=${existing%%$'\n'*}
 if [[ -n $existing ]]; then
   skip "the ${line}* line already has a tag (${existing}); ${marker} is not needed"
 fi

@@ -245,6 +245,20 @@ expect_marker "release/vX marks v(X+1).0.0-0" "v3.0.0-0" release/v2
 expect_marker "non-release branch is ignored" "" feature/foo
 expect_marker "releases/ (plural) is ignored" "" releases/v2.4
 
+# Regression: more tags in the next line than fit in a pipe buffer (64 KiB)
+# must still be a successful no-op, not a SIGPIPE failure under pipefail.
+new_repo mark-many-src
+commit; git tag v4.0.0
+git branch release/v4.0
+commit
+head_sha=$(git rev-parse HEAD)
+for ((i = 0; i < 20000; i++)); do echo "create refs/tags/v4.1.$i $head_sha"; done | git update-ref --stdin
+git clone -q --bare "$WORK/mark-many-src" "$WORK/mark-many-origin.git"
+git clone -q "$WORK/mark-many-origin.git" "$WORK/mark-many"
+cd "$WORK/mark-many" || exit 1
+expect_marker "existing line with many tags is left alone" "" release/v4.0
+cd "$WORK/mark" || exit 1
+
 # --- dev-version and mark-version-line together -------------------------------
 
 git fetch -q --tags origin
