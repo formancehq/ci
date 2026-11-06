@@ -5,6 +5,9 @@ on:
     branches:
       - main
     paths:
+      - 'actions/dev-version/**'
+      - 'actions/mark-version-line/**'
+      - 'tests/dev-version/**'
       - 'flake.nix'
       - 'flake.lock'
       - '.github/workflows/go-dirty.yml'
@@ -17,6 +20,9 @@ on:
       - '.github/workflows/self-test.yml'
   pull_request:
     paths:
+      - 'actions/dev-version/**'
+      - 'actions/mark-version-line/**'
+      - 'tests/dev-version/**'
       - 'flake.nix'
       - 'flake.lock'
       - '.github/workflows/go-dirty.yml'
@@ -29,6 +35,33 @@ on:
       - '.github/workflows/self-test.yml'
 
 jobs:
+  DevVersion:
+    name: Dev Version
+    runs-on: namespace-profile-linux-amd64-2vcpu
+    steps:
+      - uses: namespacelabs/nscloud-checkout-action@v9
+        with:
+          fetch-depth: 0
+          dissociate: true
+
+      - name: Unit tests (dev-version, mark-version-line)
+        run: ./tests/dev-version/run.sh
+
+      # Smoke test of the composite action on this repository's own v1.x.y tags.
+      - name: Compute development version
+        id: dev-version
+        uses: ./actions/dev-version
+
+      - name: Verify outputs
+        env:
+          VERSION: ${{ steps.dev-version.outputs.version }}
+          VERSION_NUMBER: ${{ steps.dev-version.outputs.version-number }}
+          BASE_TAG: ${{ steps.dev-version.outputs.base-tag }}
+        run: |
+          echo "version=$VERSION version-number=$VERSION_NUMBER base-tag=$BASE_TAG"
+          [[ $VERSION =~ ^v[0-9]+\.[0-9]+\.[0-9]+-.*dev\.[0-9]+\.g[0-9a-f]{7,}$ ]]
+          [[ v$VERSION_NUMBER == "$VERSION" ]]
+
   SetupNix:
     name: Setup Nix
     runs-on: namespace-profile-linux-amd64-2vcpu

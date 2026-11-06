@@ -46,6 +46,20 @@ on:
         description: Extra flags for nix develop
         type: string
         default: ''
+      dev-version:
+        description: >-
+          Compute a SemVer development version with actions/dev-version (RFC-0013), pass it to the
+          build as DEV_VERSION, and expose it as the `version` / `version-number` outputs. Needs at
+          least one reachable vX.Y.Z tag.
+        type: boolean
+        default: false
+    outputs:
+      version:
+        description: Development version with a leading v (empty unless dev-version is enabled and the build ran)
+        value: ${{ jobs.GoReleaser.outputs.version }}
+      version-number:
+        description: Development version without the leading v (empty unless dev-version is enabled and the build ran)
+        value: ${{ jobs.GoReleaser.outputs.version-number }}
 
 permissions:
   contents: read
@@ -59,11 +73,19 @@ jobs:
       || (inputs.build-condition == 'main-only' && (github.ref == 'refs/heads/main' || github.event_name == 'merge_group'))
       || (inputs.build-condition == 'label-only' && (contains(github.event.pull_request.labels.*.name, inputs.build-label) || (inputs.build-extra-label != '' && contains(github.event.pull_request.labels.*.name, inputs.build-extra-label))))
       || (inputs.build-condition == 'main-and-label' && (github.ref == 'refs/heads/main' || github.event_name == 'merge_group' || contains(github.event.pull_request.labels.*.name, inputs.build-label) || (inputs.build-extra-label != '' && contains(github.event.pull_request.labels.*.name, inputs.build-extra-label))))
+    outputs:
+      version: ${{ steps.dev-version.outputs.version }}
+      version-number: ${{ steps.dev-version.outputs.version-number }}
     steps:
       - uses: namespacelabs/nscloud-checkout-action@v9
         with:
           fetch-depth: 0
           dissociate: true
+
+      - name: Compute development version
+        id: dev-version
+        if: ${{ inputs.dev-version }}
+        uses: formancehq/ci/actions/dev-version@v1
 
       - name: Setup Nix and caching
         if: ${{ !inputs.enable-docker }}
@@ -92,6 +114,7 @@ jobs:
           SPEAKEASY_API_KEY: ${{ secrets.SPEAKEASY_API_KEY }}
           FURY_TOKEN: ${{ secrets.FURY_TOKEN }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+          DEV_VERSION: ${{ steps.dev-version.outputs.version-number }}
           NIX_EXTRA_FLAGS: ${{ inputs.nix-extra-flags }}
           BUILD_TARGET: ${{ inputs.build-target }}
           PARALLELISM_FLAG: ${{ inputs.goreleaser-parallelism > 0 && format('--parallelism={0}', inputs.goreleaser-parallelism) || '' }}

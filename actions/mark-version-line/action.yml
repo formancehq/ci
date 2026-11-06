@@ -1,0 +1,39 @@
+name: Mark Version Line
+description: Tag a release branch's branch point with the marker of the next version line (vX.(Y+1).0-0), per RFC-0013
+
+inputs:
+  branch:
+    description: Release branch (release/vX.Y or release/vX). Defaults to the ref that triggered the run.
+    required: false
+    default: ''
+  default-branch:
+    description: Default branch of the repository. Defaults to the repository's default branch.
+    required: false
+    default: ''
+  dry-run:
+    description: Compute the marker without tagging or pushing
+    required: false
+    default: 'false'
+
+outputs:
+  marker:
+    description: Marker tag created (empty when nothing was tagged)
+    value: ${{ steps.mark.outputs.marker }}
+  branch-point:
+    description: Commit the marker points to
+    value: ${{ steps.mark.outputs.branch-point }}
+  pushed:
+    description: Whether a tag was pushed
+    value: ${{ steps.mark.outputs.pushed }}
+
+runs:
+  using: composite
+  steps:
+    - name: Mark version line
+      id: mark
+      shell: bash
+      env:
+        MARK_BRANCH: ${{ inputs.branch || github.ref_name }}
+        MARK_DEFAULT_BRANCH: ${{ inputs.default-branch || github.event.repository.default_branch }}
+        MARK_DRY_RUN: ${{ inputs.dry-run }}
+      run: '"$GITHUB_ACTION_PATH/mark-version-line.sh"'

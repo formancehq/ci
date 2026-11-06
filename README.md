@@ -31,6 +31,7 @@ The GitHub UI displays checks with the workflow name as a visual prefix (`Defaul
 | `go-build.yml` | GoReleaser CI build + GHCR | [docs](docs/workflows/go-build.md) |
 | `go-release.yml` | GoReleaser tagged release + GHCR | [docs](docs/workflows/go-release.md) |
 | `go-codeql.yml` | CodeQL static analysis for Go | -- |
+| `mark-version-line.yml` | Tag a release branch point with the next line's `-0` marker (RFC-0013) | [docs](docs/actions/mark-version-line.md) |
 
 ## Actions
 
@@ -40,6 +41,8 @@ The GitHub UI displays checks with the workflow name as a visual prefix (`Defaul
 | `setup-release` | setup-nix + GHCR + QEMU + Buildx | [docs](docs/actions/setup-release.md) |
 | `setup-nix-pnpm` | Nix + pnpm cache for JS/TS repos | [docs](docs/actions/setup-nix-pnpm.md) |
 | `deploy-staging` | Tailscale OIDC + ArgoCD deploy | [docs](docs/actions/deploy-staging.md) |
+| `dev-version` | SemVer development version from Git tags (RFC-0013) | [docs](docs/actions/dev-version.md) |
+| `mark-version-line` | Push the next version line's marker tag (RFC-0013) | [docs](docs/actions/mark-version-line.md) |
 | `docker-build` | Docker build + push with configurable buildx | [docs](docs/actions/docker-build.md) |
 | `docker-manifest` | Multi-arch manifest from per-arch images | [docs](docs/actions/docker-manifest.md) |
 

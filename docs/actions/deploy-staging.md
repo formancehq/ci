@@ -7,7 +7,7 @@ Connects to Tailscale via OIDC and deploys to staging via ArgoCD CLI.
 | Name | Default | Description |
 |------|---------|-------------|
 | `component` | `''` | Component name (for default parameter pattern) |
-| `tag` | *(required)* | Image tag to deploy (typically `github.sha`) |
+| `tag` | *(required)* | Image tag to deploy (`go-build.yml` `version` output for stack modules, see RFC-0013) |
 | `auth-token` | *(required)* | ArgoCD auth token |
 | `application` | `staging-eu-west-1-hosting-regions` | ArgoCD application name |
 | `parameter` | `''` | ArgoCD parameter(s), one per line (overrides default component pattern) |
