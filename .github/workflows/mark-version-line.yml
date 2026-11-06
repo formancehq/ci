@@ -1,0 +1,79 @@
+name: Mark Version Line
+
+# Tags the branch point of a newly created release branch with the marker of
+# the next version line (RFC-0013), so development versions computed by
+# actions/dev-version on the default branch move to the new line.
+#
+# Callers trigger it on `create` (which cannot be filtered by branch in `on:`)
+# and on `workflow_dispatch` to backfill markers for existing release branches:
+#
+#   on:
+#     create:
+#     workflow_dispatch:
+#       inputs:
+#         branch:
+#           description: Release branch to mark (release/vX.Y or release/vX)
+#           required: true
+#         dry-run:
+#           type: boolean
+#           default: true
+#   jobs:
+#     Mark:
+#       if: github.event_name == 'workflow_dispatch' || (github.ref_type == 'branch' && startsWith(github.ref_name, 'release/'))
+#       uses: formancehq/ci/.github/workflows/mark-version-line.yml@v1
+#       permissions:
+#         contents: write
+#       with:
+#         branch: ${{ inputs.branch || github.ref_name }}
+#         dry-run: ${{ inputs.dry-run || false }}
+#
+# Tags pushed with GITHUB_TOKEN do not trigger other workflows, so the marker
+# does not start the caller's release workflow. Release workflows must still
+# exclude markers ('!v*.*.*-0') for markers pushed by hand.
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        description: Release branch (release/vX.Y or release/vX). Defaults to the ref that triggered the run.
+        type: string
+        default: ''
+      dry-run:
+        description: Compute the marker without tagging or pushing
+        type: boolean
+        default: false
+      runner-profile:
+        description: Runner for the job
+        type: string
+        default: namespace-profile-linux-amd64-2vcpu
+    outputs:
+      marker:
+        description: Marker tag created (empty when nothing was tagged)
+        value: ${{ jobs.Mark.outputs.marker }}
+
+permissions:
+  contents: write
+
+jobs:
+  Mark:
+    name: Mark
+    runs-on: ${{ inputs.runner-profile }}
+    permissions:
+      contents: write
+    concurrency:
+      group: mark-version-line
+      cancel-in-progress: false
+    outputs:
+      marker: ${{ steps.mark.outputs.marker }}
+    steps:
+      - uses: namespacelabs/nscloud-checkout-action@v9
+        with:
+          fetch-depth: 0
+          dissociate: true
+
+      - name: Mark version line
+        id: mark
+        uses: formancehq/ci/actions/mark-version-line@v1
+        with:
+          branch: ${{ inputs.branch }}
+          dry-run: ${{ inputs.dry-run }}

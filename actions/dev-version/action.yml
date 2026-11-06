@@ -1,0 +1,47 @@
+name: Dev Version
+description: Compute a SemVer-valid development version (vX.Y.Z-dev.N.gSHA) from Git tags, per RFC-0013
+
+inputs:
+  branch:
+    description: >-
+      Branch whose version line selects the base tag (release/vX.Y -> vX.Y.*, release/vX -> vX.*,
+      anything else -> v*). Defaults to the pull request or merge queue base branch, else the pushed branch.
+    required: false
+    default: ''
+  ref:
+    description: Commit to version
+    required: false
+    default: HEAD
+  working-directory:
+    description: Directory inside the Git checkout
+    required: false
+    default: '.'
+
+outputs:
+  version:
+    description: Development version with a leading v (e.g. v2.4.2-dev.76.g6399077)
+    value: ${{ steps.compute.outputs.version }}
+  version-number:
+    description: Development version without the leading v, for GoReleaser's DEV_VERSION
+    value: ${{ steps.compute.outputs.version-number }}
+  base-tag:
+    description: Tag the version is derived from
+    value: ${{ steps.compute.outputs.base-tag }}
+  distance:
+    description: Number of commits since the base tag
+    value: ${{ steps.compute.outputs.distance }}
+  short-sha:
+    description: Abbreviated commit hash
+    value: ${{ steps.compute.outputs.short-sha }}
+
+runs:
+  using: composite
+  steps:
+    - name: Compute development version
+      id: compute
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        DEV_VERSION_BRANCH: ${{ inputs.branch || github.base_ref || github.event.merge_group.base_ref || github.ref_name }}
+        DEV_VERSION_REF: ${{ inputs.ref }}
+      run: '"$GITHUB_ACTION_PATH/dev-version.sh"'
