@@ -170,7 +170,9 @@ main() {
     if [[ $prefix == v ]]; then
       die "no SemVer tag (vX.Y.Z[-prerelease]) is reachable from ${commit}; are tags fetched?"
     fi
-    die "no SemVer tag in the ${prefix}* line of branch '${branch}' is reachable from ${commit}; push the line's marker tag (e.g. ${prefix}0-0 for a minor line, ${prefix}0.0-0 for a major line) or a release tag first"
+    local marker
+    if [[ $prefix =~ ^v[0-9]+\.[0-9]+\.$ ]]; then marker="${prefix}0-0"; else marker="${prefix}0.0-0"; fi
+    die "no SemVer tag in the ${prefix}* line of branch '${branch}' is reachable from ${commit}; tag the line's first commit with a release or the marker ${marker}"
   fi
 
   local distance short

@@ -22,6 +22,11 @@
 set -euo pipefail
 export LC_ALL=C
 
+# Shared SemVer helpers (_inc_num, is_semver). Both actions ship in the same
+# repository, so the sibling script is always present next to this one.
+# shellcheck source=SCRIPTDIR/../dev-version/dev-version.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../dev-version/dev-version.sh"
+
 die() {
   echo "::error title=mark-version-line::$*" >&2
   exit 1
@@ -52,16 +57,20 @@ dry_run="${MARK_DRY_RUN:-false}"
 
 if [[ $branch =~ ^release/v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
   major=${BASH_REMATCH[1]}
-  minor=$((BASH_REMATCH[2] + 1))
+  _inc_num "${BASH_REMATCH[2]}" # decimal string: no 64-bit overflow
+  minor=$REPLY
   marker="v${major}.${minor}.0-0"
   line="v${major}.${minor}."
 elif [[ $branch =~ ^release/v(0|[1-9][0-9]*)$ ]]; then
-  major=$((BASH_REMATCH[1] + 1))
+  _inc_num "${BASH_REMATCH[1]}"
+  major=$REPLY
   marker="v${major}.0.0-0"
   line="v${major}."
 else
   skip "'${branch}' is neither release/vX.Y nor release/vX; no marker to create"
 fi
+
+is_semver "$marker" || die "computed marker '${marker}' is not valid SemVer"
 
 git fetch --quiet --tags "$remote" \
   "+refs/heads/${branch}:refs/remotes/${remote}/${branch}" \

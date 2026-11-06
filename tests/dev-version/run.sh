@@ -204,6 +204,9 @@ commit
 expect_failure "no tag fails" "no SemVer tag" main
 git tag v1.0.0
 expect_failure "no tag in the line fails" "line of branch 'release/v2.0'" release/v2.0
+expect_failure "minor line failure suggests vX.Y.0-0" "marker v2.0.0-0\$" release/v2.0
+expect_failure "major line failure suggests vX.0.0-0" "marker v2.0.0-0\$" release/v2
+expect_failure "major line failure suggests vX.0.0-0 (v3)" "marker v3.0.0-0\$" release/v3
 
 new_repo shallow-src
 commit; git tag v1.0.0; commit 3
@@ -261,6 +264,30 @@ expect_marker "existing line tag is left alone" "" release/v2.4
 expect_marker "release/vX marks v(X+1).0.0-0" "v3.0.0-0" release/v2
 expect_marker "non-release branch is ignored" "" feature/foo
 expect_marker "releases/ (plural) is ignored" "" releases/v2.4
+
+# Next-line numbers beyond the shell's 64-bit integer range: the marker must be
+# the decimal successor and valid SemVer, never a wrapped negative number.
+new_repo mark-big-src
+commit
+big_cases="
+release/v1.9223372036854775806:v1.9223372036854775807.0-0
+release/v1.9223372036854775807:v1.9223372036854775808.0-0
+release/v1.99999999999999999999:v1.100000000000000000000.0-0
+release/v9223372036854775807:v9223372036854775808.0.0-0
+release/v99999999999999999999:v100000000000000000000.0.0-0
+release/v9223372036854775807.0:v9223372036854775807.1.0-0
+"
+for big_case in $big_cases; do git branch "${big_case%%:*}"; done
+git clone -q --bare "$WORK/mark-big-src" "$WORK/mark-big-origin.git"
+git clone -q "$WORK/mark-big-origin.git" "$WORK/mark-big"
+cd "$WORK/mark-big" || exit 1
+for big_case in $big_cases; do
+  expect_marker "${big_case%%:*} marks ${big_case#*:}" "${big_case#*:}" "${big_case%%:*}" true
+  if is_semver "${big_case#*:}"; then ok "${big_case#*:} is valid SemVer"; else ko "${big_case#*:} is valid SemVer"; fi
+done
+expect_marker "boundary marker is pushed" "v1.9223372036854775808.0-0" release/v1.9223372036854775807
+if git ls-remote --exit-code --tags origin v1.9223372036854775808.0-0 >/dev/null; then ok "boundary marker reached origin"; else ko "boundary marker reached origin"; fi
+cd "$WORK/mark" || exit 1
 
 # Regression: more tags in the next line than fit in a pipe buffer (64 KiB)
 # must still be a successful no-op, not a SIGPIPE failure under pipefail.
